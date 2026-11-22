@@ -1,0 +1,1 @@
+ALTER TABLE public.subjects ADD COLUMN IF NOT EXISTS video_minutes_total integer NOT NULL DEFAULT 0, ADD COLUMN IF NOT EXISTS video_minutes_watched integer NOT NULL DEFAULT 0;

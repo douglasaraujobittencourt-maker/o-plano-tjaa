@@ -1,0 +1,20 @@
+- [x] Configurações: manter apenas Foto pessoal no lugar do gerenciamento de logos, com prévia circular e avatar no perfil; preservar logos salvas e preparar configuração externa de armazenamento.
+- [ ] Aplicar configuração de avatars e verificar envio/remoção na conta real: depende do proprietário do serviço externo, sem sessão disponível neste ambiente.
+- [ ] Edital Verticalizado: painel, checklist, filtros, cadastro/edição e importação de planilha.
+- [ ] Edital Verticalizado: SQL com isolamento por usuário e integração bidirecional de sessões/revisões sem contagem duplicada.
+- [ ] Conferir assuntos e regras Caixa + BB com a planilha original (aguarda anexo que não chegou).
+- [ ] Aplicar SQL do edital e validar fluxo real na conta externa (aguarda configuração do proprietário; sessão externa indisponível).
+- [x] Remover sobrescrita automática de cores ao entrar e usar cor salva também no ciclo (3 testes de salvamento/leitura passaram com serviço simulado; verificação na conta real indisponível sem sessão externa).
+- [x] Revisar todas as referências a cores de matérias e atualizar consultas independentes de ciclo, revisões, flashcards, histórico e desempenho após edição; funções do banco externo continuam indisponíveis para inspeção.
+- [x] Adicionar envio, troca e remoção da logo do concurso nas Configurações e exibição na visão geral (6 testes passaram; envio real aguarda configuração externa).
+- [ ] Ativar coluna e bucket de logos no serviço externo: depende da aplicação da configuração pelo proprietário.
+- [x] Corrigir erros de typecheck reportados no build-errors.log
+- [x] Alternar os progressos de PDFs e videoaulas no mesmo espaço, com setas e swipe (controle verificado isoladamente em desktop e mobile).
+- [x] Garantir e testar a inclusão de videoaulas nas métricas globais de horas (7 testes passaram).
+- [x] Reduzir um pouco fontes e elementos na versão desktop (base 15px a partir de 768px, 14.5px a partir de 1536px).
+- [ ] Validar registro de videoaula e leitura das métricas na conta real: bloqueado pelo acesso externo sem sessão de teste disponível.
+- [x] Deixar os ícones dos cards de métricas da visão geral no verde da barra de progresso no tema escuro (dark:text-primary = mesmo oklch(0.88 0.24 128) do indicador).
+- [x] Usar a logo "o.plano" (wordmark vetorial com ponto verde) na área de login, no lugar do nome genérico "O Plano".
+- [x] Retraçar o wordmark a partir do arquivo original em alta resolução enviado pelo Douglas e aplicá-lo também no menu interno (sidebar e gaveta mobile), com contraste por tema.
+- [x] Reduzir o tamanho da logo "o.plano" no menu interno, no desktop (26px / 30px) e no mobile (32px de altura).
+- [x] Usar a marca "O." (anel branco + ponto verde sobre azul-marinho) como favicon do planner: public/favicon.png, public/favicon.ico (16/32/48/64) e public/apple-touch-icon.png (180), referenciados no head da rota raiz.

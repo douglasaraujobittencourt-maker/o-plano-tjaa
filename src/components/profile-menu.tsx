@@ -29,7 +29,7 @@ export function ProfileMenu({ name, src }: ProfileMenuProps) {
           className="flex max-w-full items-center gap-2.5 rounded-full bg-[#BFFF29] px-1.5 py-1 text-[#0B1320] transition-colors hover:bg-[#BFFF29] hover:text-[#0B1320] active:bg-[#BFFF29] active:text-[#0B1320] data-[state=open]:bg-[#BFFF29] data-[state=open]:text-[#0B1320] focus-visible:bg-[#BFFF29] focus-visible:text-[#0B1320] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B1320]"
           style={{ backgroundColor: "#BFFF29", color: "#0B1320" }}
         >
-          <UserAvatar name={name} src={src} className="h-[52px] w-[52px] shrink-0 border-primary/70" />
+          <UserAvatar name={name} src={src} className="h-[58px] w-[58px] shrink-0 border-primary/70" />
           <span className="hidden max-w-36 truncate text-sm font-medium text-[#0B1320] lg:inline">{name.trim().split(/\s+/)[0]}</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-[#0B1320]" aria-hidden="true" />
         </button>

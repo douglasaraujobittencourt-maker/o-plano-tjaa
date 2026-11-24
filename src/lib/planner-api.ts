@@ -1,3 +1,4 @@
+import { tribunalGroups, tribunalCatalog, tribunalInitialSlots, isTribunalSubject } from "@/lib/tribunal-catalog";
 import { localDateStr, addDaysStr } from "./dates";
 import { supabase } from "@/integrations/supabase/external-client";
 import { idCanonicoAssunto, idsOriginaisDoAssunto } from "@/lib/edital-topic-equivalence";
@@ -31,11 +32,17 @@ export async function announcePlannerProgress() {
 export async function markEditalTopicsStudied(subjectId: string, topicIds: number[]): Promise<void> {
   const ids = [...new Set(topicIds.map(idCanonicoAssunto))];
   if (!ids.length) return;
-  const { error } = await (supabase as any).rpc("planner_mark_edital_topics_studied", {
-    p_subject_id: subjectId,
-    p_topic_ids: ids,
-  });
-  if (error) throw new Error("Não foi possível sincronizar a conclusão dos assuntos. Confira se a migração de sincronização foi aplicada no Supabase: " + error.message);
+  const {data:auth}=await supabase.auth.getUser();
+  if(!auth.user)throw new Error("Sessão expirada.");
+  const topics=tribunalCatalog.assuntos.filter(a=>ids.includes(a.id));
+  if(topics.length!==ids.length)throw new Error("Assunto fora do catálogo de tribunais.");
+  for(const a of topics){
+    const {data:existing,error:readError}=await supabase.from("study_sessions").select("id").eq("user_id",auth.user.id).eq("edital_assunto_id",a.id).eq("task","Conclusão manual").limit(1);
+    if(readError)throw readError;
+    if(existing?.length)continue;
+    const {error}=await supabase.from("study_sessions").insert({user_id:auth.user.id,subject_id:subjectId,edital_assunto_id:a.id,session_date:localDateStr(),kind:"questoes",minutes:0,pages_read:0,questions_done:0,questions_correct:0,task:"Conclusão manual",lesson:a.topico_central});
+    if(error&&error.code!=="23505")throw error;
+  }
 }
 
 export async function getProfile(): Promise<Profile | null> {
@@ -45,7 +52,7 @@ export async function getProfile(): Promise<Profile | null> {
 
 export async function getSubjects(): Promise<Subject[]> {
   const { data } = await supabase.from("subjects").select("*").order("ord");
-  return (data ?? []) as any;
+  return ((data ?? []) as Subject[]).filter(s => isTribunalSubject(s.name));
 }
 
 export async function getCycle() {
@@ -566,55 +573,30 @@ export async function updateProfile(patch: { weekly_goal_hours?: number; weekly_
 // Bootstrap: cria perfil + matérias + ciclo caso ainda não existam.
 // Não depende de trigger no banco.
 // ---------------------------------------------------------------------------
-const BASIC_COLOR = "#3B82F6";
-const SPECIFIC_COLOR = "#22C55E";
-
-const DEFAULT_SUBJECTS: { name: string; pages: number; q: number; color: string }[] = [
-  { name: "Língua Portuguesa", pages: 109, q: 344, color: BASIC_COLOR },
-  { name: "Raciocínio Lógico-Matemático", pages: 44, q: 130, color: BASIC_COLOR },
-  { name: "Noções de Informática", pages: 21, q: 71, color: BASIC_COLOR },
-  { name: "Direito Constitucional", pages: 44, q: 130, color: BASIC_COLOR },
-  { name: "Direito Administrativo", pages: 27, q: 83, color: BASIC_COLOR },
-  { name: "Ética no Serviço Público", pages: 12, q: 38, color: BASIC_COLOR },
-  { name: "Seguridade Social", pages: 42, q: 128, color: SPECIFIC_COLOR },
-];
-
-export async function ensureUserBootstrap(): Promise<void> {
-  const { data: auth } = await supabase.auth.getUser();
-  const user = auth?.user;
-  if (!user) return;
-
-  const { data: prof } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
-  if (!prof) {
-    await supabase.from("profiles").insert({
-      id: user.id,
-      display_name:
-        (user.user_metadata as any)?.display_name ?? (user.email ?? "").split("@")[0],
-      exam_name: "INSS · Técnico do Seguro Social",
-      exam_date: null,
-    } as any);
-  }
-
-  const { data: subs } = await supabase.from("subjects").select("id").limit(1);
-  if (subs && subs.length > 0) return;
-
-  // Seed oficial INSS: TODA conta nova recebe exatamente esta lista,
-  // nesta ordem, com estas páginas, questões e cores.
-  const rows = DEFAULT_SUBJECTS.map((s, i) => ({
-    user_id: user.id,
-    name: s.name,
-    ord: i,
-    pages: s.pages,
-    total_questions: s.q,
-    color: s.color,
-    pages_read: 0,
-    study_status: "pending",
-    weight: 5,
-  }));
-  const { data: created } = await supabase.from("subjects").insert(rows as any).select("id, ord");
-  if (created?.length) {
-    await supabase.from("cycle_slots").insert(
-      created.map((c: any) => ({ user_id: user.id, subject_id: c.id, ord: c.ord, hours_per_cycle: 1, done_hours: 0 })) as any,
-    );
-  }
+const PLAN_NAME="TJGO · Analista Administrativo | TJDFT · Técnico Administrativo";
+export async function ensureUserBootstrap():Promise<void>{
+ const {data:auth}=await supabase.auth.getUser();const user=auth?.user;if(!user)return;
+ const uid=user.id;
+ const {data:prof,error:profileError}=await supabase.from("profiles").select("id,exam_name").eq("id",uid).maybeSingle();
+ if(profileError)throw profileError;
+ if(!prof){const {error}=await supabase.from("profiles").insert({id:uid,display_name:(user.user_metadata as any)?.display_name??(user.email??"").split("@")[0],exam_name:PLAN_NAME,exam_date:null,weekly_goal_hours:12} as any);if(error)throw error;}
+ const {data:existing,error:subjectError}=await supabase.from("subjects").select("id,name,ord,study_status").eq("user_id",uid).order("ord");
+ if(subjectError)throw subjectError;
+ const byName=new Map((existing??[]).map(s=>[s.name,s]));
+ const first=prof?.exam_name!==PLAN_NAME;
+ for(const [i,g] of tribunalGroups.entries()){
+  const old=byName.get(g.name);
+  const row={name:g.name,ord:i,planned_hours_per_week:g.hours,exam_questions:g.questions??0,weight:g.points??2,study_status:g.hours?"active":"pending"};
+  if(old){if(first){const {error}=await (supabase.from("subjects") as any).update(row).eq("id",old.id).eq("user_id",uid);if(error)throw error;}continue;}
+  const {data:created,error}=await (supabase.from("subjects") as any).insert({...row,user_id:uid,pages:0,pages_read:0,total_questions:0,color:["#16a34a","#2563eb","#d97706","#7c3aed","#0891b2"][i%5]}).select("id,name,ord,study_status").single();
+  if(error)throw error;byName.set(g.name,created);
+ }
+ if(first){
+  // Apenas substitui a programação do ciclo deste usuário. Histórico de sessões/revisões é preservado.
+  const {error:del}=await supabase.from("cycle_slots").delete().eq("user_id",uid);if(del)throw del;
+  // Um slot por matéria, com total semanal; a ordem das sessões é apresentada no Ciclo.
+  const rows=tribunalGroups.filter(g=>g.hours).map((g,i)=>({user_id:uid,subject_id:byName.get(g.name)!.id,ord:i,hours_per_cycle:g.hours,done_hours:0}));
+  const {error:slotError}=await supabase.from("cycle_slots").insert(rows as any);if(slotError)throw slotError;
+  const {error:profileUpdate}=await supabase.from("profiles").update({exam_name:PLAN_NAME,weekly_goal_hours:12}).eq("id",uid);if(profileUpdate)throw profileUpdate;
+ }
 }

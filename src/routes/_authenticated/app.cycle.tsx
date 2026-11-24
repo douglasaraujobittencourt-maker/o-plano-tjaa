@@ -11,7 +11,8 @@ import { localDateStr, addDaysStr } from "@/lib/dates";
 import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
 import { subjectBelongsToBank, subjectTopicIds } from "@/lib/bank-exams";
 import { getEditalCatalog } from "@/lib/edital-catalog";
-import { loadBnbCatalog } from "@/lib/edital-bnb-data";
+import { tribunalStudyPlan } from "@/lib/tribunal-study-plan";
+import { tribunalGroups } from "@/lib/tribunal-catalog";
 import { markEditalTopicsStudied, announcePlannerProgress } from "@/lib/planner-api";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -54,7 +55,7 @@ function CyclePage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("subjects").select("*").order("ord");
       if (error) throw error;
-      return (data ?? []).filter(s => subjectBelongsToBank(s.name, bank))
+      return (data ?? []).filter(s => subjectBelongsToBank(s.name, "bnb"))
         .map((s, index) => ({
           ...s,
           study_block: 1,
@@ -88,9 +89,9 @@ function CyclePage() {
     },
   });
 
-  const activeSubjects = subjects.filter((s: any) => s.study_status === "active");
+  const activeSubjects = subjects.filter((s: any) => s.study_status === "active" && s.name !== "Redação (Prova Discursiva)");
   const finalizedSubjects = subjects.filter((s: any) => s.study_status === "finalized");
-  const pendingSubjects = subjects.filter((s: any) => s.study_status === "pending");
+  const pendingSubjects = subjects.filter((s: any) => s.study_status === "pending" && s.name !== "Redação (Prova Discursiva)");
 
   const redactionSubject = subjects.find((s: any) => s.name === "Redação (Prova Discursiva)");
   const isRedactionActive = redactionSubject?.study_status === "active";
@@ -116,8 +117,8 @@ function CyclePage() {
 
       const subNames = subNamesMap[name] || [name];
 
-      const [catalogoBB, catalogoBNB] = await Promise.all([getEditalCatalog(), loadBnbCatalog()]);
-      const ids = subjectTopicIds(name, bank, catalogoBB, catalogoBNB);
+      const catalogoBB = await getEditalCatalog();
+      const ids = subjectTopicIds(name, "bnb", catalogoBB);
       if (!ids.length) throw new Error("Matéria sem tópicos vinculados ao concurso ativo.");
       await markEditalTopicsStudied(subjectId, ids);
       await announcePlannerProgress();
@@ -214,8 +215,8 @@ function CyclePage() {
       if (newStatus === "finalized") {
         const matching = subjects.find((s: any) => s.name === groupName);
         if (!matching) throw new Error("Matéria fora do concurso ativo.");
-        const [catalogoBB, catalogoBNB] = await Promise.all([getEditalCatalog(), loadBnbCatalog()]);
-        const ids = subjectTopicIds(groupName, bank, catalogoBB, catalogoBNB);
+        const catalogoBB = await getEditalCatalog();
+        const ids = subjectTopicIds(groupName, "bnb", catalogoBB);
         if (!ids.length) throw new Error("Matéria sem tópicos do edital ativo.");
         await markEditalTopicsStudied(matching.id, ids);
         await announcePlannerProgress();
@@ -281,7 +282,7 @@ function CyclePage() {
             <Repeat className="w-6 h-6 text-primary" /> Panorama Geral do Ciclo de Estudos
           </h1>
           <p className="text-muted-foreground text-sm">
-            Visualize somente as matérias do banco ativo, seus estados e a fila de estudos.
+            TJGO prioritário · TJDFT em seguida · quatro matérias objetivas ativas e discursiva semanal.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -294,6 +295,13 @@ function CyclePage() {
         </div>
       </div>
 
+      <Card className="p-5 space-y-3">
+        <h2 className="font-semibold">Ciclo inicial · 12 horas líquidas</h2>
+        <p className="text-xs text-muted-foreground">Sessões flexíveis, sem dia fixo. Retome de onde parou. Revisões e questões dentro de cada bloco.</p>
+        {tribunalStudyPlan.sessions.map((session,i)=><div key={i} className="flex flex-wrap gap-2 text-sm border-b pb-2"><strong>Sessão {i+1}</strong>{session.map((slot,j)=><span key={j}>{slot.subject} · {slot.minutes} min</span>)}</div>)}
+        <p className="text-sm">{tribunalGroups.filter(g=>g.hours).map(g=>g.name+" "+g.hours.toLocaleString("pt-BR")+"h").join(" · ")}</p>
+        <p className="text-xs text-muted-foreground">Quando uma matéria objetiva termina, passa a revisão e entra a próxima da fila. A tabela acima é a referência inicial.</p>
+      </Card>
       {/* Redação Banner */}
       {isRedactionActive && (
         <Card className="p-5 border-primary/40 bg-gradient-to-r from-primary/10 via-card to-card card-elevated flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -303,7 +311,7 @@ function CyclePage() {
               <span>✍️ Redação da Semana (Meta Ativa)</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Você alcançou o bloco de redações! Cumpra a meta de produzir 1 redação por semana.
+              Uma hora por ciclo: teoria e prática desde o começo; avance para uma discursiva semanal.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">

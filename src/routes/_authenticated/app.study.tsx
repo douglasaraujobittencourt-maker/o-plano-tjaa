@@ -6,7 +6,7 @@ import { getEditalCatalog } from "@/lib/edital-catalog";
 import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
 import { bankMatterNumbers, bankTopicAllowed, bankTopicsForMatter, subjectBelongsToBank, subjectMatterNumber, subjectTopicIds } from "@/lib/bank-exams";
 import { idCanonicoAssunto } from "@/lib/edital-topic-equivalence";
-import { loadBnbCatalog, corMateriaBnb } from "@/lib/edital-bnb-data";
+import { scopeLabel } from "@/lib/tribunal-catalog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,10 +43,9 @@ function StudyPage() {
   const { data: subjects = [] } = useQuery({ queryKey: ["subjects"], queryFn: getSubjects });
   const { data: todaySessions = [] } = useQuery({ queryKey: ["today", today], queryFn: () => getTodaySessions(today) });
   const { data: editalCatalog } = useQuery({queryKey: ["edital-catalog"], queryFn: getEditalCatalog, staleTime: 60_000});
-  const { data: bnbCatalog } = useQuery({queryKey: ["edital-bnb-catalog"], queryFn: loadBnbCatalog, staleTime: Infinity});
 
   const [subject, setSubject] = useState<string>("");
-  const [kind, setKind] = useState<"leitura"|"video"|"questoes">("leitura");
+  const [kind, setKind] = useState<"leitura"|"video"|"questoes"|"redacao">("leitura");
   const [pages, setPages] = useState(0);
   const [videoMin, setVideoMin] = useState(0);
   const [q, setQ] = useState(0);
@@ -55,32 +54,22 @@ function StudyPage() {
   const [editalMateria, setEditalMateria] = useState("");
   const [editalAssunto, setEditalAssunto] = useState("");
   const bankSubjects = subjects.filter(s => subjectBelongsToBank(s.name, bank));
-  const bankMaterias = bankMatterNumbers(bank, editalCatalog, bnbCatalog);
+  const bankMaterias = bankMatterNumbers(bank, editalCatalog);
   useEffect(() => {
     setSubject("");
     setEditalMateria("");
     setEditalAssunto("");
   }, [bank]);
-  const materiaBnbSelecionada = bnbCatalog?.materias.find(m => String(m.numero) === editalMateria);
-  const assuntosDoEdital = bankTopicsForMatter(Number(editalMateria), bank, editalCatalog, bnbCatalog)
+  const assuntosDoEdital = bankTopicsForMatter(Number(editalMateria), bank, editalCatalog)
     .sort((a,b) => a.id - b.id);
   const assuntoSelecionado = assuntosDoEdital.find(a => String(a.id) === editalAssunto);
   const selecionarMateriaDoEdital = (numero: string) => {
-    setEditalMateria(numero);
-    setEditalAssunto("");
-    const materiaBnb = bnbCatalog?.materias.find(m => String(m.numero) === numero);
-    if (materiaBnb) {
-      const materiaExistente = subjects.find(s => s.name === "BNB: " + materiaBnb.titulo_central);
-      setSubject(materiaExistente?.id ?? "");
-      setIsSubjectFinished(materiaExistente?.study_status === "finalized");
-    } else {
-      // Evita registrar uma sessão BB/Caixa numa matéria BNB selecionada antes.
-      const selecionada = subjects.find(s => s.id === subject);
-      if (selecionada?.name.startsWith("BNB: ")) {
-        setSubject("");
-        setIsSubjectFinished(false);
-      }
-    }
+    setEditalMateria(numero); setEditalAssunto("");
+    const m=editalCatalog?.materias.find(m=>String(m.numero)===numero);
+    const s=bankSubjects.find(s=>s.name===m?.titulo_central);
+    setSubject(s?.id??""); setIsSubjectFinished(s?.study_status==="finalized");
+    if(s?.name==="Redação (Prova Discursiva)")setKind("redacao");
+    else if(kind==="redacao")setKind("leitura");
   };
   const [isLessonFinished, setIsLessonFinished] = useState(false);
   const [isSubjectFinished, setIsSubjectFinished] = useState(false);
@@ -89,6 +78,7 @@ function StudyPage() {
     setSubject(val);
     const selected = bankSubjects.find(s => s.id === val);
     const linked = selected ? subjectMatterNumber(selected.name, bank) : null;
+    if(selected?.name==="Redação (Prova Discursiva)")setKind("redacao"); else if(kind==="redacao")setKind("leitura");
     setEditalMateria(linked != null && bankMaterias.includes(linked) ? String(linked) : "");
     setEditalAssunto("");
     const sel = subjects.find((s) => s.id === val);
@@ -133,7 +123,7 @@ function StudyPage() {
       if (!assuntoSelecionado || !editalMateria || !bankMaterias.includes(Number(editalMateria))) {
         throw new Error("Selecione uma matéria e o assunto específico do concurso ativo para registrar o estudo.");
       }
-      if (bank !== "bnb" && "escopo" in assuntoSelecionado &&
+      if ("escopo" in assuntoSelecionado &&
           !bankTopicAllowed(assuntoSelecionado, bank)) {
         throw new Error("Este assunto não pertence ao concurso ativo.");
       }
@@ -141,21 +131,11 @@ function StudyPage() {
         throw new Error("A matéria do planner não pertence ao concurso selecionado.");
       }
       let materiaId: string | null = subject || null;
-      // BNB: a matéria pode ser escolhida diretamente no edital, sem cadastro manual.
-      // Só cria uma matéria do planner quando o usuário efetivamente registra a sessão.
-      if (materiaBnbSelecionada) {
-        const nome = "BNB: " + materiaBnbSelecionada.titulo_central;
-        // Consulta a lista atual antes de criar, para não duplicar a matéria
-        // se o usuário já a cadastrou em outra sessão ou dispositivo.
-        const materiasAtuais = await getSubjects();
-        const existente = materiasAtuais.find(s => s.name === nome);
-        materiaId = existente?.id ?? await createSubject({name:nome,color:corMateriaBnb(materiaBnbSelecionada.categoria)});
-      }
+      if (!subject || subjectMatterNumber(subjects.find(s=>s.id===subject)?.name??"",bank)!==Number(editalMateria)) throw new Error("A matéria selecionada deve corresponder ao assunto do edital.");
       if (assuntoSelecionado && !materiaId) throw new Error("Escolha a matéria do planner para vincular o assunto.");
       if (isSubjectFinished && materiaId) {
-        const nomeMateria = subjects.find(s => s.id === materiaId)?.name ??
-          (materiaBnbSelecionada ? "BNB: " + materiaBnbSelecionada.titulo_central : "");
-        const topicos = subjectTopicIds(nomeMateria, bank, editalCatalog, bnbCatalog);
+        const nomeMateria = subjects.find(s => s.id === materiaId)?.name ?? "";
+        const topicos = subjectTopicIds(nomeMateria, "bnb", editalCatalog);
         if (!topicos.length) throw new Error("A matéria não possui assuntos mapeados neste edital.");
         await markEditalTopicsStudied(materiaId, topicos);
       } else if (isLessonFinished && materiaId && assuntoSelecionado) {
@@ -167,7 +147,7 @@ function StudyPage() {
         topic: assuntoSelecionado?.topico_central,
         lesson: assuntoSelecionado?.topico_central ?? null,
         kind: kind === "video" ? "leitura" : kind,
-        task: kind === "video" ? "Videoaula" : kind === "leitura" ? "Leitura de PDF" : "Questões",
+        task: kind === "redacao" ? "Discursiva" : kind === "video" ? "Videoaula" : kind === "leitura" ? "Leitura de PDF" : "Questões",
         minutes,
         pages_read: pages,
         questions_done: q,
@@ -180,7 +160,7 @@ function StudyPage() {
     },
     onSuccess: (materiaId) => {
       announcePlannerProgress();
-      if (materiaBnbSelecionada && materiaId) setSubject(materiaId);
+      if (materiaId) setSubject(materiaId);
       if (isLessonFinished) {
         toast.success("Sessão registrada! Ciclo de revisões (7, 15, 30 e 60 dias) agendado com sucesso! 🎯");
       } else if (isSubjectFinished) {
@@ -308,6 +288,7 @@ function StudyPage() {
                 <SelectItem value="leitura">Leitura / Teoria</SelectItem>
                 <SelectItem value="video">Videoaulas / Teoria</SelectItem>
                 <SelectItem value="questoes">Revisão / Questões</SelectItem>
+                <SelectItem value="redacao">Discursiva / Redação</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -325,13 +306,7 @@ function StudyPage() {
             <Select value={editalMateria} onValueChange={selecionarMateriaDoEdital}>
               <SelectTrigger><SelectValue placeholder="Selecionar matéria do concurso" /></SelectTrigger>
               <SelectContent>
-                {bank === "bnb"
-                  ? (bnbCatalog?.materias ?? []).filter(m => bankMaterias.includes(m.numero)).map(m => (
-                      <SelectItem key={m.numero} value={String(m.numero)}>
-                        BNB · {m.titulo_central}
-                      </SelectItem>
-                    ))
-                  : (editalCatalog?.materias ?? []).filter(m => bankMaterias.includes(m.numero)).map(m => (
+                {(editalCatalog?.materias ?? []).filter(m => bankMaterias.includes(m.numero)).map(m => (
                       <SelectItem key={m.numero} value={String(m.numero)}>
                         {m.titulo_central.replace(/^\d+\.\s*/, "")}
                       </SelectItem>
@@ -341,14 +316,14 @@ function StudyPage() {
           </div>
           <div className="space-y-1">
             <Label>Assunto específico do edital (obrigatório)</Label>
-            <Select value={editalAssunto} onValueChange={setEditalAssunto} disabled={!editalMateria || (!subject && !materiaBnbSelecionada)}>
+            <Select value={editalAssunto} onValueChange={setEditalAssunto} disabled={!editalMateria || !subject}>
               <SelectTrigger><SelectValue placeholder="Selecionar assunto obrigatório" /></SelectTrigger>
               <SelectContent>
-                {assuntosDoEdital.map(a=><SelectItem key={a.id} value={String(a.id)}>{a.topico_central}</SelectItem>)}
+                {assuntosDoEdital.map(a=><SelectItem key={a.id} value={String(a.id)}>{a.topico_central} · {scopeLabel(a.escopo)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <p className="text-xs text-muted-foreground md:col-span-2">O banco ativo restringe as matérias e os assuntos. Vincule sempre o assunto exato: o progresso é sincronizado pelo ID canônico também nos editais equivalentes.</p>
+          <p className="text-xs text-muted-foreground md:col-span-2">O tribunal selecionado restringe as matérias e os assuntos. Vincule sempre o assunto exato: o progresso é sincronizado pelo ID canônico também nos editais equivalentes.</p>
         </div>
         <div>
           <Label>Aula / Tópico / Notas</Label>

@@ -1,7 +1,4 @@
 import { supabase } from "@/integrations/supabase/external-client";
-import { getEditalCatalog } from "@/lib/edital-catalog";
-import { loadBnbCatalog } from "@/lib/edital-bnb-data";
-import { montarMateriasTresBancos } from "@/lib/edital-three-banks";
 
 export type EtapaEdital =
   | "Pendente"
@@ -77,25 +74,7 @@ export async function getEtapasAutomaticasEdital(): Promise<EtapasEdital> {
     result[id] = idsConcluidos.has(id) ? "Concluído" : ETAPAS[nivel];
   }
 
-  // Espelha somente tópicos textualmente equivalentes nos três bancos.
-  // Mantém o armazenamento original por ID: nenhuma sessão ou revisão é duplicada.
-  // Tópicos parcialmente relacionados, mas diferentes, continuam independentes.
-  try {
-    const [catalog, bnb] = await Promise.all([getEditalCatalog(), loadBnbCatalog()]);
-    for (const materia of montarMateriasTresBancos(catalog, bnb)) {
-      for (const assunto of materia.assuntos) {
-        if (!assunto.referencias.some(ref => ref.origem === "bnb") ||
-            !assunto.referencias.some(ref => ref.origem === "caixa-bb")) continue;
-        const maiorEtapa = Math.max(...assunto.referencias.map(ref =>
-          ETAPAS.indexOf(result[ref.id] ?? "Pendente")));
-        const etapaCompartilhada = ETAPAS[maiorEtapa] ?? "Pendente";
-        for (const ref of assunto.referencias) result[ref.id] = etapaCompartilhada;
-      }
-    }
-  } catch {
-    // Se um catálogo estiver indisponível, os dados originais de progresso
-    // continuam sendo exibidos sem perder nenhuma etapa já registrada.
-  }
+  // Tópicos comuns compartilham o mesmo ID no catálogo de tribunais.
   return result;
 }
 

@@ -20,7 +20,7 @@ import { ProgressCarousel } from "@/components/progress-carousel";
 import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
 import { subjectBelongsToBank } from "@/lib/bank-exams";
 import { sumStudyMinutes, studyMinutesBy } from "@/lib/study-metrics";
-import { corBolinhaVisaoGeral, corCaixaParaMateria, corBnbParaMateria } from "@/lib/caixa-subject-colors";
+import { corBolinhaVisaoGeral } from "@/lib/caixa-subject-colors";
 
 export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({
@@ -117,31 +117,6 @@ function Dashboard() {
     (user.user_metadata?.display_name as string | undefined) ||
     user.email?.split("@")[0] || "Estudante";
   const { data: subjects = [] } = useQuery({ queryKey: ["subjects"], queryFn: getSubjects });
-  // A Visão geral consultava subjects.color, portanto mudar apenas a aparência
-  // das bolinhas não atualizava os valores persistidos. Normaliza uma vez
-  // por matéria da Caixa e do BNB, e atualiza as demais telas via React Query.
-  const colorsSyncing = useRef(false);
-  const colorsAttempted = useRef(new Set<string>());
-  useEffect(() => {
-    if (colorsSyncing.current || !subjects.length) return;
-    const pendentes = subjects.flatMap(subject => {
-      const cor = corBnbParaMateria(subject.name) ?? corCaixaParaMateria(subject.name);
-      if (!cor || subject.color?.toLowerCase() === cor.toLowerCase()) return [];
-      const chave = subject.id + ":" + cor;
-      if (colorsAttempted.current.has(chave)) return [];
-      return [{ subject, cor, chave }];
-    });
-    if (!pendentes.length) return;
-    colorsSyncing.current = true;
-    for (const p of pendentes) colorsAttempted.current.add(p.chave);
-    void Promise.all(pendentes.map(p => updateSubject(p.subject.id, { color: p.cor })))
-      .then(() => qc.invalidateQueries({ queryKey: ["subjects"] }))
-      .catch(error => {
-        console.error("Falha ao atualizar cores das matérias:", error);
-        toast.error("Não foi possível salvar as cores das matérias. Verifique sua conexão.");
-      })
-      .finally(() => { colorsSyncing.current = false; });
-  }, [subjects, qc]);
   const { data: dueReviews = [] } = useQuery({ queryKey: ["reviews-due", today], queryFn: () => getDueReviews(today) });
   const { data: weekSessions = [] } = useQuery({ queryKey: ["week", weekStart, today], queryFn: () => getSessionsBetween(weekStart, today) });
   const { data: monthSessions = [] } = useQuery({ queryKey: ["month", monthStart, today], queryFn: () => getSessionsBetween(monthStart, today) });

@@ -16,7 +16,7 @@ export const Route=createFileRoute("/_authenticated/app/edital")({head:()=>({met
 function EditalPage(){
  const {bank}=useBankExam();
  const [search,setSearch]=useState("");
- const catalog=useQuery({queryKey:["edital-catalog"],queryFn:getEditalCatalog,staleTime:Infinity});
+ const catalog=useQuery({queryKey:["edital-catalog"],queryFn:getEditalCatalog,staleTime:0,refetchInterval:5000});
  const progress=useQuery({queryKey:["edital-auto-progresso"],queryFn:getEtapasAutomaticasEdital,refetchInterval:10000,refetchOnWindowFocus:true});
  const normalize=(s:string)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
  const query=normalize(search.trim());

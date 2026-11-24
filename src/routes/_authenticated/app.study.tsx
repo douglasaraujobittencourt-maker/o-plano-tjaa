@@ -342,7 +342,7 @@ function StudyPage() {
           {todaySessions.map((s: any) => (
             <li key={s.id} className="flex items-center gap-3 text-sm p-2 rounded-md border border-border/50">
               {(()=>{const live=subjects.find(m=>m.id===s.subject_id)??s.subject;return live?<ProgressTribunalDots subject={live} bank={subjectMatchesExam(live,bank)?bank:"bnb"}/>:null;})()}
-              <span className="flex-1">{subjects.find(m=>m.id===s.subject_id)?.name??s.subject?.name??"Sem matéria"} · <span className="text-muted-foreground">{s.task === "Videoaula" ? "Videoaula" : s.kind === "leitura" ? "Leitura" : s.kind === "questoes" ? "Questões" : s.kind}</span>{s.lesson&&<span className="block text-xs text-muted-foreground">{subjects.flatMap(m=>topicsForSubject(m,"bnb")).find(a=>a.id===s.edital_assunto_id)?.topico_central??s.lesson}</span>}</span>
+              <span className="flex-1">{subjects.find(m=>m.id===s.subject_id)?.name??s.subject?.name??"Sem matéria"} · <span className="text-muted-foreground">{s.task === "Videoaula" ? "Videoaula" : s.kind === "leitura" ? "Leitura" : s.kind === "questoes" ? "Questões" : s.kind}</span>{s.lesson&&<span className="block text-xs text-muted-foreground">{s.lesson}</span>}</span>
               <span className="text-muted-foreground text-xs">{s.minutes} min · {s.pages_read} pg · {s.questions_correct}/{s.questions_done} q</span>
               <Button size="icon" variant="ghost" onClick={() => setEditSession({
                 id: s.id, subject_id: s.subject_id ?? "", kind: s.kind === "redacao" ? "redacao" : s.task === "Videoaula" ? "video" : s.kind === "questoes" ? "questoes" : "leitura", minutes: s.minutes,

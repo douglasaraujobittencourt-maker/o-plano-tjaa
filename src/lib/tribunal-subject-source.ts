@@ -12,7 +12,32 @@ export type ProgressCategory=keyof typeof PROGRESS_TRIBUNAL_LEGEND;
 export type TopicScope="Só BB"|"Só Caixa"|"Comum (Caixa + BB)";
 export type TribunalTopic={id:number;title:string;scope:TopicScope};
 export type TribunalData={number:number;categories:ProgressCategory[];topics:TribunalTopic[];archived?:boolean};
-export type SubjectRef={name:string;tribunal_data?:TribunalData|null};
+export type TopicOverride={removed:true}|{title:string;scope:TopicScope};
+export type TopicOverrides=Record<string,TopicOverride>;
+export type SubjectRef={name:string;tribunal_data?:TribunalData|null;topic_overrides?:TopicOverrides};
+const TOPIC_PREFIX="planner_tribunal_topic_v1:";
+export function topicOverrideKey(subjectId:string,topicId:number):string{return TOPIC_PREFIX+subjectId+":"+topicId;}
+export function topicOverridesForSubject(metadata:Record<string,unknown>,subjectId:string):TopicOverrides{
+ const prefix=TOPIC_PREFIX+subjectId+":";
+ const entries=Object.entries(metadata).filter(([key])=>key.startsWith(prefix)&&/^\d+$/.test(key.slice(prefix.length)));
+ const valid=entries.flatMap(([key,value])=>{
+  if(!value||typeof value!=="object")return [];
+  const v=value as {removed?:boolean;title?:string;scope?:TopicScope};
+  const id=key.slice(prefix.length);
+  if(v.removed===true)return [[id,{removed:true}] as const];
+  if(typeof v.title==="string"&&v.title.trim()&&["Só BB","Só Caixa","Comum (Caixa + BB)"].includes(v.scope??""))return [[id,{title:v.title,scope:v.scope!}] as const];
+  return [];
+ });
+ return Object.fromEntries(valid);
+}
+export function applyTopicOverrides(data:TribunalData,overrides:TopicOverrides={}):TribunalData{
+ return {...data,topics:data.topics.flatMap(t=>{
+  const patch=overrides[String(t.id)];
+  if(!patch)return [t];
+  if("removed" in patch)return [];
+  return [{...t,title:patch.title,scope:patch.scope}];
+ })};
+}
 export function officialDefinition(name:string):TribunalData|null{
  const m=tribunalCatalog.materias.find(m=>m.titulo_central===name);if(!m)return null;
  const categories:ProgressCategory[]=[];
@@ -23,7 +48,7 @@ export function officialDefinition(name:string):TribunalData|null{
  }
  return {number:m.numero,categories,topics:tribunalCatalog.assuntos.filter(a=>a.materia_numero===m.numero).map(a=>({id:a.id,title:a.topico_central,scope:a.escopo as TopicScope}))};
 }
-export function subjectDefinition(s:SubjectRef):TribunalData|null{return s.tribunal_data===undefined?officialDefinition(s.name):s.tribunal_data;}
+export function subjectDefinition(s:SubjectRef):TribunalData|null{const data=s.tribunal_data??officialDefinition(s.name);return data?applyTopicOverrides(data,s.topic_overrides):null;}
 export function scopeForCategories(categories:ProgressCategory[]):TopicScope{
  const go=categories.some(c=>c==="writing"||c.startsWith("go")),df=categories.some(c=>c==="writing"||c.startsWith("df"));
  return go&&df?"Comum (Caixa + BB)":go?"Só BB":"Só Caixa";

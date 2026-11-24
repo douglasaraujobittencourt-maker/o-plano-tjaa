@@ -1,5 +1,5 @@
 import { tribunalGroups } from "@/lib/tribunal-catalog";
-import {selectPlannerSubjects,topicsForSubject,isWritingSubject,scopeOptions,type TribunalData,type TribunalTopic,type TopicScope,type ProgressCategory} from "@/lib/tribunal-subject-source";
+import {selectPlannerSubjects,topicsForSubject,isWritingSubject,scopeOptions,subjectDefinition,topicOverrideKey,topicOverridesForSubject,type TopicOverrides,type TopicOverride,type TribunalData,type TribunalTopic,type TopicScope,type ProgressCategory} from "@/lib/tribunal-subject-source";
 import { localDateStr, addDaysStr } from "./dates";
 import { supabase } from "@/integrations/supabase/external-client";
 import { idCanonicoAssunto, idsOriginaisDoAssunto } from "@/lib/edital-topic-equivalence";
@@ -15,6 +15,7 @@ export type Profile = {
 };
 export type Subject = {
   tribunal_data?:TribunalData|null;
+  topic_overrides?:TopicOverrides;
   id: string; name: string; ord: number; pages: number; pages_read: number; total_questions: number; weight: number; color: string;
   study_status?: string; maintenance_weekly_questions_goal?: number; maintenance_questions_this_week?: number;
   planned_hours_per_week?: number; exam_questions?: number; min_questions?: number;
@@ -54,9 +55,12 @@ export async function getProfile(): Promise<Profile | null> {
 }
 
 export async function getSubjects(): Promise<Subject[]> {
-  const { data,error } = await supabase.from("subjects").select("*").order("ord");
+  const [{data,error},auth]=await Promise.all([supabase.from("subjects").select("*").order("ord"),supabase.auth.getUser()]);
   if(error)throw error;
-  return selectPlannerSubjects((data??[]) as Subject[],"bnb");
+  if(auth.error||!auth.data.user)throw new Error("Não foi possível carregar os assuntos da sua conta. Verifique a sessão e tente novamente.");
+  const metadata=auth.data.user.user_metadata??{};
+  const rows=((data??[]) as Subject[]).map(s=>({...s,topic_overrides:topicOverridesForSubject(metadata,s.id)}));
+  return selectPlannerSubjects(rows,"bnb");
 }
 
 export async function getCycle() {
@@ -543,23 +547,69 @@ async function allocateTribunalId():Promise<number>{
 async function writeTribunalDefinition(subject:Subject,next:TribunalData){
  if(!subject.tribunal_data)throw new Error("O cadastro editável precisa da migração do catálogo no Supabase.");
  const {data,error}=await (supabase as any).rpc("planner_update_tribunal_data",{p_subject_id:subject.id,p_expected:subject.tribunal_data,p_next:next});
- if(error)throw new Error(error.message);
- if(!data)throw new Error("A matéria mudou em outra aba. Atualize e tente novamente.");
+ if(error)throw error;
+ if(!data)throw new Error("A matéria não pôde ser atualizada: alteração concorrente ou permissão insuficiente (RLS). Atualize e tente novamente.");
  await announcePlannerProgress();
 }
-export async function changeTribunalTopic(subjectId:string,input:{id?:number;title?:string;scope?:TopicScope;remove?:boolean}){
+/** Somente ausência de estrutura autoriza o caminho compatível; nunca ignora RLS. */
+function missingCatalogStructure(error:unknown):boolean{
+ const e=error as {code?:string;message?:string};
+ return ["PGRST202","PGRST204","42883","42703","42P01"].includes(e?.code??"");
+}
+export function tribunalTopicError(error:unknown):string{
+ const e=error as {code?:string;message?:string;status?:number};
+ if(e?.code==="42501"||e?.status===403||/row.level.security|permission denied/i.test(e?.message??""))return "O Supabase não permitiu a alteração (permissão/RLS). Verifique as permissões da sua conta. Nenhum histórico foi excluído.";
+ if(e?.code==="23503"||/foreign key/i.test(e?.message??""))return "O assunto possui vínculos no banco (chave estrangeira). A alteração foi recusada; os registros históricos foram preservados.";
+ if(e?.status===401||e?.code==="session_not_found")return "Sua sessão expirou. Entre novamente e tente salvar.";
+ return e?.message||"Não foi possível alterar o assunto. Tente novamente.";
+}
+async function persistTopicOverride(subject:Subject,id:number,patch:TopicOverride):Promise<Subject>{
+ // Auth API do mesmo Supabase: alteração persistente por conta, sem nova coluna/tabela.
+ // Cada assunto tem sua própria chave para não sobrescrever edições de outros assuntos.
+ // Metadados são usados somente para personalizar conteúdo, nunca para autorização.
+ const key=topicOverrideKey(subject.id,id);
+ const {data,error}=await supabase.auth.updateUser({data:{[key]:patch}});
+ if(error)throw error;
+ const saved=data.user?.user_metadata?.[key];
+ if(!saved||("removed" in patch?saved.removed!==true:saved.title!==patch.title||saved.scope!==patch.scope))throw new Error("O banco não confirmou a gravação do assunto. Atualize a lista e tente novamente.");
+ await announcePlannerProgress();
+ return {...subject,topic_overrides:{...subject.topic_overrides,[String(id)]:patch}};
+}
+export async function changeTribunalTopic(subjectId:string,input:{id?:number;title?:string;scope?:TopicScope;remove?:boolean}):Promise<Subject>{
  const subject=(await getSubjects()).find(s=>s.id===subjectId);
- if(!subject?.tribunal_data)throw new Error("A edição de assuntos precisa da migração do catálogo no Supabase.");
- const current=subject.tribunal_data;let topics=current.topics;
- if(input.id!==undefined&&!topics.some(t=>t.id===input.id))throw new Error("O assunto não está mais cadastrado.");
- if(input.remove){if(input.id===undefined)throw new Error("Selecione o assunto.");topics=topics.filter(t=>t.id!==input.id);}
- else{
-  const title=input.title?.trim();
-  if(!title||!input.scope||!scopeOptions(subject).includes(input.scope))throw new Error("Informe o assunto e um escopo válido.");
-  const topic:TribunalTopic={id:input.id??await allocateTribunalId(),title,scope:input.scope};
-  topics=input.id===undefined?[...topics,topic]:topics.map(t=>t.id===input.id?topic:t);
+ if(!subject)throw new Error("Matéria não encontrada ou sem acesso.");
+ const current=subjectDefinition(subject);
+ if(!current)throw new Error("Não foi possível carregar o catálogo da matéria.");
+ if(input.id!==undefined&&!current.topics.some(t=>t.id===input.id))throw new Error("O assunto não está mais cadastrado.");
+ if(input.remove&&input.id===undefined)throw new Error("Selecione o assunto.");
+ const title=input.title?.trim();
+ if(!input.remove&&(!title||!input.scope||!scopeOptions(subject).includes(input.scope)))throw new Error("Informe o assunto e um escopo válido.");
+
+ if(input.id===undefined){
+  // Adição mantém o mecanismo já existente de IDs únicos do catálogo migrado.
+  if(!subject.tribunal_data)throw new Error("Adicionar um assunto novo requer a estrutura de cadastro. Editar e excluir os assuntos existentes já está disponível.");
+  const topic:TribunalTopic={id:await allocateTribunalId(),title:title!,scope:input.scope!};
+  const next={...subject.tribunal_data,topics:[...subject.tribunal_data.topics,topic]};
+  await writeTribunalDefinition(subject,next);
+  return {...subject,tribunal_data:next};
  }
- await writeTribunalDefinition(subject,{...current,topics});
+
+ const id=input.id;
+ const patch:TopicOverride=input.remove?{removed:true}:{title:title!,scope:input.scope!};
+ // Catálogo já migrado: grava no próprio registro da matéria com controle de concorrência.
+ // Uma personalização legada continua sendo editada na mesma chave, inclusive após a migração.
+ if(subject.tribunal_data&&!subject.topic_overrides?.[String(id)]){
+  const raw=subject.tribunal_data;
+  const topics=input.remove?raw.topics.filter(t=>t.id!==id):raw.topics.map(t=>t.id===id?{...t,title:title!,scope:input.scope!}:t);
+  const next={...raw,topics};
+  try{
+   await writeTribunalDefinition(subject,next);
+   return {...subject,tribunal_data:next};
+  }catch(error){
+   if(!missingCatalogStructure(error))throw error;
+  }
+ }
+ return persistTopicOverride(subject,id,patch);
 }
 export async function archiveTribunalSubject(subjectId:string){
  const subject=(await getSubjects()).find(s=>s.id===subjectId);

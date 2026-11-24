@@ -72,7 +72,9 @@ export async function saveEditableCycle(sessions:CycleSessions,expectedRevision:
   const {data,error}=await supabase.auth.updateUser({data:{[CYCLE_LAYOUT_KEY]:layout}});
   if(error)throw error;
   undo.push(async()=>{const {error}=await supabase.auth.updateUser({data:{[CYCLE_LAYOUT_KEY]:state.layout}});if(error)throw error;});
-  if(JSON.stringify(data.user?.user_metadata?.[CYCLE_LAYOUT_KEY])!==JSON.stringify(layout))throw Error("O servidor não confirmou a programação.");
+  const confirmed=data.user?.user_metadata?.[CYCLE_LAYOUT_KEY];
+  // JSONB pode reordenar as chaves; compare conteúdo normalizado, não ordem de propriedades.
+  if(confirmed?.version!==1||!Array.isArray(confirmed.sessions)||JSON.stringify(confirmed.sessions.map((session:any[])=>session.map(b=>[b.slotId,b.minutes])))!==JSON.stringify(layout.sessions.map(session=>session.map(b=>[b.slotId,b.minutes]))))throw Error("O servidor não confirmou a programação.");
   const verified=await getEditableCycle();
   if(JSON.stringify(verified.sessions)!==JSON.stringify(sessions))throw Error("O banco não confirmou todos os minutos planejados.");
   await announcePlannerProgress();return verified;

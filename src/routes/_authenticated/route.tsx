@@ -83,12 +83,16 @@ function AppShell() {
     const changed = () => {
       void qc.invalidateQueries({ queryKey: ["edital-auto-progresso"] });
       void qc.invalidateQueries({ queryKey: ["subjects"] });
+      void qc.invalidateQueries({ queryKey: ["edital-catalog"] });
+      void qc.invalidateQueries({ queryKey: ["subjects-blocks"] });
+      void qc.invalidateQueries({ queryKey: ["cycle-slots"] });
       void qc.invalidateQueries({ queryKey: ["all-sessions"] });
       void qc.invalidateQueries({ queryKey: ["reviews-due"] });
     };
     const storage = (event: StorageEvent) => { if (event.key === `o-plano:progress:${user.id}`) changed(); };
     window.addEventListener("storage", storage);
     const channel = supabase.channel(`o-plano-edital-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "subjects", filter: `user_id=eq.${user.id}` }, changed)
       .on("postgres_changes", { event: "*", schema: "public", table: "study_sessions", filter: `user_id=eq.${user.id}` }, changed)
       .on("postgres_changes", { event: "*", schema: "public", table: "reviews", filter: `user_id=eq.${user.id}` }, changed)
       .subscribe();

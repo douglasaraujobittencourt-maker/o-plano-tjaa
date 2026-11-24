@@ -18,67 +18,11 @@ import { toast } from "sonner";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { ProgressCarousel } from "@/components/progress-carousel";
 import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
-import { subjectBelongsToBank, subjectMatterNumber, type BankExam } from "@/lib/bank-exams";
+import {selectPlannerSubjects,categoryChoices} from "@/lib/tribunal-subject-source";
+import {ProgressTribunalDots,ProgressTribunalLegend} from "@/components/tribunal-progress-colors";
+import {archiveTribunalSubject} from "@/lib/planner-api";
 import { sumStudyMinutes, studyMinutesBy } from "@/lib/study-metrics";
 import { corBolinhaVisaoGeral } from "@/lib/caixa-subject-colors";
-
-// Paleta exclusiva dos dois quadros de progresso; não altera subjects.color.
-const PROGRESS_TRIBUNAL_LEGEND = {
-  goBasic: { label: "TJ Goiás — Conhecimentos Básicos", color: "#28A745" },
-  goSpecific: { label: "TJ Goiás — Conhecimentos Específicos", color: "#EACB00" },
-  dfBasic: { label: "TJDFT — Conhecimentos Básicos", color: "#0284C7" },
-  dfSpecific: { label: "TJDFT — Conhecimentos Específicos", color: "#0F172A" },
-  writing: { label: "Redação (TJ Goiás e TJDFT)", color: "#D1D5DB" },
-} as const;
-type ProgressCategory = keyof typeof PROGRESS_TRIBUNAL_LEGEND;
-
-// Classificação por tribunal conforme os blocos dos editais históricos.
-const GO_BASIC_SUBJECTS = new Set([202, 205, 206]);
-const DF_BASIC_SUBJECTS = new Set([202, 208, 210]);
-
-function progressCategories(name: string, bank: BankExam): ProgressCategory[] {
-  const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  if (/\b(redacao|discursiva)\b/.test(normalized)) return ["writing"];
-  const categories: ProgressCategory[] = [];
-  const go = bank !== "caixa" ? subjectMatterNumber(name, "bb") : null;
-  const df = bank !== "bb" ? subjectMatterNumber(name, "caixa") : null;
-  if (go !== null) categories.push(GO_BASIC_SUBJECTS.has(go) ? "goBasic" : "goSpecific");
-  if (df !== null) categories.push(DF_BASIC_SUBJECTS.has(df) ? "dfBasic" : "dfSpecific");
-  return categories;
-}
-
-function ProgressTribunalDot({ category }: { category: ProgressCategory }) {
-  const { label, color } = PROGRESS_TRIBUNAL_LEGEND[category];
-  return (
-    <span role="img" aria-label={label} title={label}
-      className="w-2.5 h-2.5 rounded-full shrink-0 aspect-square ring-1 ring-border/50"
-      style={{ backgroundColor: color }} />
-  );
-}
-
-function ProgressTribunalDots({ name, bank }: { name: string; bank: BankExam }) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1">
-      {progressCategories(name, bank).map(category => (
-        <ProgressTribunalDot key={category} category={category} />
-      ))}
-    </span>
-  );
-}
-
-function ProgressTribunalLegend() {
-  return (
-    <div role="group" aria-label="Legenda das categorias de matérias"
-      className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-      {(Object.keys(PROGRESS_TRIBUNAL_LEGEND) as ProgressCategory[]).map(category => (
-        <span key={category} className="inline-flex items-center gap-1.5">
-          <ProgressTribunalDot category={category} />
-          <span>{PROGRESS_TRIBUNAL_LEGEND[category].label}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
 
 export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({
@@ -150,6 +94,7 @@ function Dashboard() {
   const refreshAllData = async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["subjects"] }),
+      qc.invalidateQueries({ queryKey: ["edital-catalog"] }),
       qc.invalidateQueries({ queryKey: ["all-sessions"] }),
       qc.invalidateQueries({ queryKey: ["week"] }),
       qc.invalidateQueries({ queryKey: ["month"] }),
@@ -239,7 +184,7 @@ function Dashboard() {
   });
 
   // Um único filtro rege PDFs, videoaulas, horas semanais e o gráfico.
-  const bankSubjects = subjects.filter(s => subjectBelongsToBank(s.name, bank));
+  const bankSubjects = selectPlannerSubjects(subjects,bank);
   // Horas semanais por matéria
   const weeklySubjectData = bankSubjects.map((s) => {
     const planejado = s.planned_hours_per_week ?? 0;
@@ -337,6 +282,7 @@ function Dashboard() {
   };
 
   const [editMode, setEditMode] = useState<"all" | "pdf" | "video">("all");
+  const [newCategory,setNewCategory]=useState("both-specific");
 
   const openEditSubject = (s: any, mode: "all" | "pdf" | "video" = "all") => {
     setEditMode(mode);
@@ -355,6 +301,7 @@ function Dashboard() {
     if (!editingSubject) return;
     try {
       const planned = Math.max(0, Number(plannedHours) || 0);
+      if(!name.trim()||subjects.some(s=>s.id!==editingSubject.id&&s.name.toLocaleLowerCase("pt-BR")===name.trim().toLocaleLowerCase("pt-BR")))throw new Error("Informe um nome único para a matéria.");
       await updateSubject(editingSubject.id, {
         name: name.trim(),
         color,
@@ -376,10 +323,9 @@ function Dashboard() {
     }
   };
 
-  const handleDeleteSubject = async (_id: string) => {toast.error("As matérias oficiais permanecem vinculadas ao edital. Altere a carga no ciclo.");};
+  const handleDeleteSubject=async(id:string)=>{if(!window.confirm("Remover a matéria das listas? O histórico será preservado; a matéria sairá do ciclo."))return;try{await archiveTribunalSubject(id);await refreshAllData();setEditingSubject(null);toast.success("Matéria removida.");}catch(e:any){toast.error(e.message);}};
 
   const handleCreateSubject = async () => {
-    if(!subjectBelongsToBank(name.trim(),"bnb")){toast.error("Inclua apenas matérias do catálogo oficial.");return;}
     if(subjects.some(s=>s.name===name.trim())){toast.error("Esta matéria já está cadastrada.");return;}
     if (!name.trim()) {
       toast.error("Insira o nome da matéria");
@@ -387,7 +333,10 @@ function Dashboard() {
     }
     try {
       const planned = Math.max(0, Number(plannedHours) || 0);
+      const selected=categoryChoices.find(c=>c.value===newCategory);
+      if(!selected)throw new Error("Selecione uma categoria.");
       await createSubject({
+        categories:selected.categories,
         name: name.trim(),
         color,
         planned_hours_per_week: planned,
@@ -718,7 +667,7 @@ function Dashboard() {
                 <tr key={row.id} className="hover:bg-muted/30 transition">
                   <td className="py-2.5 px-3 font-semibold">
                     <div className="flex items-center gap-2">
-                      <ProgressTribunalDots name={row.name} bank={bank} />
+                      <ProgressTribunalDots subject={row} bank={bank} />
                       <span>{row.name}</span>
                     </div>
                   </td>
@@ -788,7 +737,7 @@ function Dashboard() {
                 <tr key={row.id} className="hover:bg-muted/30 transition">
                   <td className="py-2.5 px-3 font-semibold">
                     <div className="flex items-center gap-2">
-                      <ProgressTribunalDots name={row.name} bank={bank} />
+                      <ProgressTribunalDots subject={row} bank={bank} />
                       <span>{row.name}</span>
                     </div>
                   </td>
@@ -938,7 +887,7 @@ function Dashboard() {
           <div className="space-y-4 py-2">
             <div>
               <Label htmlFor="subName">Nome da Matéria</Label>
-              <Input id="subName" value={name} readOnly className="mt-1" />
+              <Input id="subName" value={name} onChange={e=>setName(e.target.value)} readOnly={!editingSubject?.tribunal_data} className="mt-1" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1003,6 +952,7 @@ function Dashboard() {
             <div>
               <Label htmlFor="newName">Nome da Matéria</Label>
               <Input id="newName" placeholder="Ex: Direito Administrativo" value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
+              <Label htmlFor="newCategory">Categoria do tribunal</Label><select id="newCategory" className="w-full mt-1 rounded-md border bg-background p-2 text-sm" value={newCategory} onChange={e=>setNewCategory(e.target.value)}>{categoryChoices.map(c=><option key={c.value} value={c.value}>{c.label}</option>)}</select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

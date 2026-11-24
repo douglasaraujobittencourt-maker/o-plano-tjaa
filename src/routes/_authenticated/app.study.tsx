@@ -2,9 +2,10 @@ import { localDateStr, addDaysStr } from "@/lib/dates";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubjects, getTodaySessions, logSession, updateSession, deleteSession, finalizeLesson, createSubject, markEditalTopicsStudied, announcePlannerProgress } from "@/lib/planner-api";
-import { getEditalCatalog } from "@/lib/edital-catalog";
+import {selectPlannerSubjects,topicsForSubject,isWritingSubject,subjectMatchesExam} from "@/lib/tribunal-subject-source";
+import {ProgressTribunalDots,ProgressTribunalLegend} from "@/components/tribunal-progress-colors";
+import {TribunalTopicEditor} from "@/components/tribunal-topic-editor";
 import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
-import { bankMatterNumbers, bankTopicAllowed, bankTopicsForMatter, subjectBelongsToBank, subjectMatterNumber, subjectTopicIds } from "@/lib/bank-exams";
 import { idCanonicoAssunto } from "@/lib/edital-topic-equivalence";
 import { scopeLabel } from "@/lib/tribunal-catalog";
 import { Card } from "@/components/ui/card";
@@ -42,7 +43,6 @@ function StudyPage() {
   const today = localDateStr();
   const { data: subjects = [] } = useQuery({ queryKey: ["subjects"], queryFn: getSubjects });
   const { data: todaySessions = [] } = useQuery({ queryKey: ["today", today], queryFn: () => getTodaySessions(today) });
-  const { data: editalCatalog } = useQuery({queryKey: ["edital-catalog"], queryFn: getEditalCatalog, staleTime: 60_000});
 
   const [subject, setSubject] = useState<string>("");
   const [kind, setKind] = useState<"leitura"|"video"|"questoes"|"redacao">("leitura");
@@ -51,47 +51,24 @@ function StudyPage() {
   const [q, setQ] = useState(0);
   const [qc2, setQc2] = useState(0);
   const [notes, setNotes] = useState("");
-  const [editalMateria, setEditalMateria] = useState("");
-  const [editalAssunto, setEditalAssunto] = useState("");
-  const bankSubjects = subjects.filter(s => subjectBelongsToBank(s.name, bank));
-  const bankMaterias = bankMatterNumbers(bank, editalCatalog);
-  useEffect(() => {
-    setSubject("");
-    setEditalMateria("");
-    setEditalAssunto("");
-    setIsSubjectFinished(false);setKind("leitura");
-  }, [bank]);
-  const assuntosDoEdital = bankTopicsForMatter(Number(editalMateria), bank, editalCatalog)
-    .sort((a,b) => a.id - b.id);
-  const assuntoSelecionado = assuntosDoEdital.find(a => String(a.id) === editalAssunto);
-  const selecionarMateriaDoEdital = (numero: string) => {
-    setEditalMateria(numero); setEditalAssunto("");
-    const m=editalCatalog?.materias.find(m=>String(m.numero)===numero);
-    const s=bankSubjects.find(s=>s.name===m?.titulo_central);
-    setSubject(s?.id??""); setIsSubjectFinished(false);
-    if(s?.name==="Redação (Prova Discursiva)")setKind("redacao");
+  const [editalAssunto,setEditalAssunto]=useState("");
+  const [isLessonFinished,setIsLessonFinished]=useState(false);
+  const [isSubjectFinished,setIsSubjectFinished]=useState(false);
+  const [editingTopics,setEditingTopics]=useState(false);
+  const bankSubjects=selectPlannerSubjects(subjects,bank);
+  const selectedSubject=bankSubjects.find(s=>s.id===subject);
+  const assuntosDoEdital=topicsForSubject(selectedSubject,bank);
+  const assuntoSelecionado=assuntosDoEdital.find(a=>String(a.id)===editalAssunto);
+  useEffect(()=>{
+    if(subject&&!selectedSubject){setSubject("");setEditalAssunto("");setIsSubjectFinished(false);setIsLessonFinished(false);setKind("leitura");setEditingTopics(false);}
+    else if(editalAssunto&&!assuntoSelecionado){setEditalAssunto("");setIsLessonFinished(false);setIsSubjectFinished(false);}
+  },[subject,selectedSubject?.id,editalAssunto,assuntoSelecionado?.id]);
+  const handleSelectSubject=(id:string)=>{
+    const next=bankSubjects.find(s=>s.id===id);
+    setSubject(id);setEditalAssunto("");setIsSubjectFinished(false);setIsLessonFinished(false);
+    if(next&&isWritingSubject(next))setKind("redacao");
+    else if(next?.study_status==="finalized")setKind("questoes");
     else if(kind==="redacao")setKind("leitura");
-  };
-  const [isLessonFinished, setIsLessonFinished] = useState(false);
-  const [isSubjectFinished, setIsSubjectFinished] = useState(false);
-
-  const handleSelectSubject = (val: string) => {
-    setSubject(val);
-    const selected = bankSubjects.find(s => s.id === val);
-    const linked = selected ? subjectMatterNumber(selected.name, bank) : null;
-    if(selected?.name==="Redação (Prova Discursiva)")setKind("redacao"); else if(kind==="redacao")setKind("leitura");
-    setEditalMateria(linked != null && bankMaterias.includes(linked) ? String(linked) : "");
-    setEditalAssunto("");
-    const sel = subjects.find((s) => s.id === val);
-    if (sel) {
-      const isFin = sel.study_status === "finalized";
-      setIsSubjectFinished(false);
-      if (isFin) {
-        setKind("questoes");
-      }
-    } else {
-      setIsSubjectFinished(false);
-    }
   };
 
   const timer = useStudyTimer();
@@ -121,28 +98,18 @@ function StudyPage() {
     mutationFn: async () => {
       const timerMin = Math.max(1, Math.round(timer.elapsed / 60));
       const minutes = kind === "video" && videoMin > 0 ? videoMin : timerMin;
-      if (!assuntoSelecionado || !editalMateria || !bankMaterias.includes(Number(editalMateria))) {
-        throw new Error("Selecione uma matéria e o assunto específico do concurso ativo para registrar o estudo.");
-      }
-      if ("escopo" in assuntoSelecionado &&
-          !bankTopicAllowed(assuntoSelecionado, bank)) {
-        throw new Error("Este assunto não pertence ao concurso ativo.");
-      }
-      if (subject && !bankSubjects.some(s => s.id === subject)) {
-        throw new Error("A matéria do planner não pertence ao concurso selecionado.");
-      }
-      let materiaId: string | null = subject || null;
-      if (!subject || subjectMatterNumber(subjects.find(s=>s.id===subject)?.name??"",bank)!==Number(editalMateria)) throw new Error("A matéria selecionada deve corresponder ao assunto do edital.");
-      if (assuntoSelecionado && !materiaId) throw new Error("Escolha a matéria do planner para vincular o assunto.");
-      const chosen=subjects.find(s=>s.id===materiaId);
-      if(kind==="redacao"&&chosen?.name!=="Redação (Prova Discursiva)")throw new Error("Selecione a matéria de Discursiva.");
-      if(chosen?.name==="Redação (Prova Discursiva)"&&kind!=="redacao")throw new Error("Use o tipo Discursiva.");
-      if(isSubjectFinished&&(chosen?.study_status!=="active"||chosen?.name==="Redação (Prova Discursiva)"))throw new Error("Somente uma matéria ativa pode avançar na fila.");
+      const fresh=selectPlannerSubjects(await getSubjects(),bank);
+      const chosen=fresh.find(s=>s.id===subject);
+      const topic=topicsForSubject(chosen,bank).find(a=>String(a.id)===editalAssunto);
+      if(!chosen||!topic)throw new Error("Selecione uma matéria e um assunto vinculado que ainda esteja cadastrado.");
+      const materiaId=chosen.id;
+      if((kind==="redacao")!==isWritingSubject(chosen))throw new Error("Selecione o tipo de estudo adequado à matéria.");
+      if(isSubjectFinished&&(chosen.study_status!=="active"||isWritingSubject(chosen)))throw new Error("Somente uma matéria objetiva ativa pode avançar na fila.");
       await logSession({
         subject_id: materiaId,
-        edital_assunto_id: assuntoSelecionado ? idCanonicoAssunto(assuntoSelecionado.id) : null,
-        topic: assuntoSelecionado?.topico_central,
-        lesson: assuntoSelecionado?.topico_central ?? null,
+        edital_assunto_id: idCanonicoAssunto(topic.id),
+        topic: topic.topico_central,
+        lesson: topic.topico_central,
         kind: kind === "video" ? "leitura" : kind,
         task: kind === "redacao" ? "Redação" : kind === "video" ? "Videoaula" : kind === "leitura" ? "Leitura de PDF" : "Questões",
         minutes,
@@ -244,6 +211,7 @@ function StudyPage() {
           <h2 className="font-semibold">Detalhes da sessão</h2>
           <BankExamSelector />
         </div>
+        <ProgressTribunalLegend />
         <div className="grid md:grid-cols-2 gap-3">
           <div>
             <Label>Matéria</Label>
@@ -253,7 +221,7 @@ function StudyPage() {
                 {bankSubjects.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.color || "#0284C7" }} />
+                      <ProgressTribunalDots subject={s} bank={bank} />
                       <span>{s.name}</span>
                       {s.study_status === "finalized" && (
                         <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
@@ -297,31 +265,16 @@ function StudyPage() {
           <div><Label>Questões feitas</Label><Input type="number" min={0} value={q} onChange={(e) => setQ(+e.target.value)} /></div>
           <div><Label>Questões corretas</Label><Input type="number" min={0} value={qc2} onChange={(e) => setQc2(+e.target.value)} /></div>
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-1">
-            <Label>Matéria do Edital Verticalizado</Label>
-            <Select value={editalMateria} onValueChange={selecionarMateriaDoEdital}>
-              <SelectTrigger><SelectValue placeholder="Selecionar matéria do concurso" /></SelectTrigger>
-              <SelectContent>
-                {(editalCatalog?.materias ?? []).filter(m => bankMaterias.includes(m.numero)).map(m => (
-                      <SelectItem key={m.numero} value={String(m.numero)}>
-                        {m.titulo_central.replace(/^\d+\.\s*/, "")}
-                      </SelectItem>
-                    ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Assunto específico do edital (obrigatório)</Label>
-            <Select value={editalAssunto} onValueChange={setEditalAssunto} disabled={!editalMateria || !subject}>
-              <SelectTrigger><SelectValue placeholder="Selecionar assunto obrigatório" /></SelectTrigger>
-              <SelectContent>
-                {assuntosDoEdital.map(a=><SelectItem key={a.id} value={String(a.id)}>{a.topico_central} · {scopeLabel(a.escopo)}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <p className="text-xs text-muted-foreground md:col-span-2">O tribunal selecionado restringe as matérias e os assuntos. Vincule sempre o assunto exato: o progresso é sincronizado pelo ID canônico também nos editais equivalentes.</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2"><Label>Assunto / Conteúdo (obrigatório)</Label>{selectedSubject&&<Button type="button" variant="outline" size="sm" onClick={()=>setEditingTopics(true)}>Gerenciar assuntos</Button>}</div>
+          <Select value={editalAssunto} onValueChange={v=>{setEditalAssunto(v);setIsLessonFinished(false);}} disabled={!selectedSubject||!assuntosDoEdital.length}>
+            <SelectTrigger><SelectValue placeholder={!selectedSubject?"Escolha a matéria primeiro":!assuntosDoEdital.length?"Nenhum assunto cadastrado":"Selecione o assunto"} /></SelectTrigger>
+            <SelectContent>{assuntosDoEdital.map(a=><SelectItem key={a.id} value={String(a.id)}>{a.topico_central} · {scopeLabel(a.escopo)}</SelectItem>)}</SelectContent>
+          </Select>
+          {selectedSubject&&!assuntosDoEdital.length&&<p className="text-xs text-muted-foreground">Cadastre um assunto antes de registrar a sessão.</p>}
+          <p className="text-xs text-muted-foreground">Assuntos filtrados pela matéria e pelo tribunal ativo, na mesma base dos quadros de PDFs e videoaulas.</p>
         </div>
+        {selectedSubject&&<TribunalTopicEditor open={editingTopics} onOpenChange={setEditingTopics} subject={selectedSubject}/>}
         <div>
           <Label>Aula / Tópico / Notas</Label>
           <Input
@@ -355,7 +308,7 @@ function StudyPage() {
             <Checkbox
               id="subjectFinished"
               checked={isSubjectFinished}
-              disabled={subjects.find(s=>s.id===subject)?.study_status!=="active" || editalMateria==="214"}
+              disabled={selectedSubject?.study_status!=="active" || (!!selectedSubject&&isWritingSubject(selectedSubject))}
               onCheckedChange={(checked) => setIsSubjectFinished(!!checked)}
               className="mt-0.5 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
             />
@@ -370,7 +323,7 @@ function StudyPage() {
           </div>
         </div>
 
-        <Button onClick={() => save.mutate()} disabled={save.isPending || timer.elapsed < 5} className="w-full">
+        <Button onClick={() => save.mutate()} disabled={save.isPending || timer.elapsed < 5 || !selectedSubject || !assuntoSelecionado} className="w-full">
           <Save className="w-4 h-4 mr-1" /> Registrar sessão ({Math.max(1, Math.round(timer.elapsed/60))} min)
         </Button>
       </Card>
@@ -388,8 +341,8 @@ function StudyPage() {
         <ul className="space-y-2">
           {todaySessions.map((s: any) => (
             <li key={s.id} className="flex items-center gap-3 text-sm p-2 rounded-md border border-border/50">
-              <span className="w-2 h-2 rounded-full" style={{ background: s.subject?.color ?? "#666" }} />
-              <span className="flex-1">{s.subject?.name ?? "Sem matéria"} · <span className="text-muted-foreground">{s.task === "Videoaula" ? "Videoaula" : s.kind === "leitura" ? "Leitura" : s.kind === "questoes" ? "Questões" : s.kind}</span></span>
+              {(()=>{const live=subjects.find(m=>m.id===s.subject_id)??s.subject;return live?<ProgressTribunalDots subject={live} bank={subjectMatchesExam(live,bank)?bank:"bnb"}/>:null;})()}
+              <span className="flex-1">{subjects.find(m=>m.id===s.subject_id)?.name??s.subject?.name??"Sem matéria"} · <span className="text-muted-foreground">{s.task === "Videoaula" ? "Videoaula" : s.kind === "leitura" ? "Leitura" : s.kind === "questoes" ? "Questões" : s.kind}</span>{s.lesson&&<span className="block text-xs text-muted-foreground">{subjects.flatMap(m=>topicsForSubject(m,"bnb")).find(a=>a.id===s.edital_assunto_id)?.topico_central??s.lesson}</span>}</span>
               <span className="text-muted-foreground text-xs">{s.minutes} min · {s.pages_read} pg · {s.questions_correct}/{s.questions_done} q</span>
               <Button size="icon" variant="ghost" onClick={() => setEditSession({
                 id: s.id, subject_id: s.subject_id ?? "", kind: s.kind === "redacao" ? "redacao" : s.task === "Videoaula" ? "video" : s.kind === "questoes" ? "questoes" : "leitura", minutes: s.minutes,
@@ -410,9 +363,9 @@ function StudyPage() {
               <div className="grid md:grid-cols-2 gap-3">
                 <div>
                   <Label>Matéria</Label>
-                  <Select value={editSession.subject_id} onValueChange={(v) => setEditSession({ ...editSession, subject_id: v })}>
+                  <Select value={editSession.subject_id} disabled>
                     <SelectTrigger><SelectValue placeholder="Sem matéria" /></SelectTrigger>
-                    <SelectContent>{bankSubjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{subjects.map((s) => <SelectItem key={s.id} value={s.id}><span className="flex items-center gap-2"><ProgressTribunalDots subject={s} bank={subjectMatchesExam(s,bank)?bank:"bnb"}/>{s.name}</span></SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>

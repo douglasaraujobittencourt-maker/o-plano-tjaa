@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { localDateStr, addDaysStr } from "@/lib/dates";
 
 import {isWritingSubject,subjectCategories,PROGRESS_TRIBUNAL_LEGEND,type ProgressCategory} from "@/lib/tribunal-subject-source";
-import {getSubjects} from "@/lib/planner-api";
+import {getSubjects,getCycle} from "@/lib/planner-api";
 
 import {EditableCycleCard} from "@/components/editable-cycle-card";
 import { completeTribunalSubject, announcePlannerProgress } from "@/lib/planner-api";
@@ -56,18 +56,14 @@ function CyclePage() {
   // Fetch active cycle slots first to help map statuses if columns are missing
   const { data: cycle = [], refetch: refetchCycle } = useQuery({
     queryKey: ["cycle-slots"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("cycle_slots")
-        .select("*, subject:subjects(*)")
-        .order("ord");
-      return data ?? [];
-    },
+    queryFn: getCycle,
+    refetchInterval: 5000,
   });
 
   // Carrega somente as matérias bancárias reais cadastradas no planner.
   const { data: subjects = [], refetch: refetchSubjects } = useQuery({
     queryKey: ["subjects-blocks", "tribunais"],
+    refetchInterval: 5000,
     queryFn: async () => {
       return (await getSubjects())
         .map((s, index) => ({

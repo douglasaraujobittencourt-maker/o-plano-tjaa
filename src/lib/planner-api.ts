@@ -54,21 +54,26 @@ export async function getProfile(): Promise<Profile | null> {
   return data as any;
 }
 
+// Arquivamento compatível com o banco legado, isolado por conta e ID de matéria.
+export const subjectArchiveKey=(id:string)=>"planner_tribunal_subject_archived_v1:"+id;
+
 export async function getSubjects(): Promise<Subject[]> {
   const [{data,error},auth]=await Promise.all([supabase.from("subjects").select("*").order("ord"),supabase.auth.getUser()]);
   if(error)throw error;
   if(auth.error||!auth.data.user)throw new Error("Não foi possível carregar os assuntos da sua conta. Verifique a sessão e tente novamente.");
   const metadata=auth.data.user.user_metadata??{};
-  const rows=((data??[]) as Subject[]).map(s=>({...s,topic_overrides:topicOverridesForSubject(metadata,s.id)}));
+  const rows=((data??[]) as Subject[]).filter(s=>metadata[subjectArchiveKey(s.id)]!==true).map(s=>({...s,topic_overrides:topicOverridesForSubject(metadata,s.id)}));
   return selectPlannerSubjects(rows,"bnb");
 }
 
 export async function getCycle() {
-  const { data } = await supabase
-    .from("cycle_slots")
-    .select("*, subject:subjects(*)")
-    .order("ord");
-  return data ?? [];
+  const [{data,error},subjects]=await Promise.all([
+    supabase.from("cycle_slots").select("*, subject:subjects(*)").order("ord"),
+    getSubjects(),
+  ]);
+  if(error)throw error;
+  const visible=new Set(subjects.map(s=>s.id));
+  return (data??[]).filter(slot=>visible.has(slot.subject_id));
 }
 
 export async function getTodaySessions(date: string) {
@@ -611,10 +616,34 @@ export async function changeTribunalTopic(subjectId:string,input:{id?:number;tit
  }
  return persistTopicOverride(subject,id,patch);
 }
+export function archiveSubjectError(error:unknown):string{
+ const e=error as {code?:string;message?:string;status?:number};
+ if(e?.code==="42501"||e?.status===403||/row.level.security|permission denied/i.test(e?.message??""))return "O Supabase não permitiu remover a matéria (permissão/RLS). Seu histórico foi preservado.";
+ if(e?.code==="23503"||/foreign key/i.test(e?.message??""))return "O banco recusou a remoção por um vínculo existente (chave estrangeira). Seu histórico foi preservado.";
+ if(e?.status===401||e?.code==="session_not_found")return "Sua sessão expirou. Entre novamente e tente excluir a matéria.";
+ return e?.message||"Não foi possível remover a matéria. Tente novamente.";
+}
 export async function archiveTribunalSubject(subjectId:string){
  const subject=(await getSubjects()).find(s=>s.id===subjectId);
- if(!subject?.tribunal_data)throw new Error("A exclusão sincronizada precisa da migração do catálogo no Supabase.");
- await writeTribunalDefinition(subject,{...subject.tribunal_data,archived:true});
+ if(!subject)throw new Error("Matéria não encontrada ou já removida. Atualize a lista.");
+ if(subject.tribunal_data){
+  try{
+   await writeTribunalDefinition(subject,{...subject.tribunal_data,archived:true});
+   return;
+  }catch(error){
+   // A alternativa legada não contorna erros de autorização ou concorrência.
+   if(!missingCatalogStructure(error))throw error;
+  }
+ }
+ // No banco atual sem a migração, persiste o arquivamento no Supabase Auth.
+ // O registro original, seus assuntos, sessões e revisões permanecem intactos.
+ // getSubjects e getCycle excluem essa matéria das projeções ativas;
+ // o histórico continua consultável pelos IDs originais.
+ const key=subjectArchiveKey(subject.id);
+ const {data,error}=await supabase.auth.updateUser({data:{[key]:true}});
+ if(error)throw error;
+ if(data.user?.user_metadata?.[key]!==true)throw new Error("O Supabase não confirmou a remoção. Atualize e tente novamente.");
+ await announcePlannerProgress();
 }
 export async function deleteSubject(id: string) {
   const { error } = await supabase.from("subjects").delete().eq("id", id);

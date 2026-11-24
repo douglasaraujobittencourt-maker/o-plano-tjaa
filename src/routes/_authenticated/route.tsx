@@ -86,6 +86,8 @@ function AppShell() {
       void qc.invalidateQueries({ queryKey: ["edital-catalog"] });
       void qc.invalidateQueries({ queryKey: ["subjects-blocks"] });
       void qc.invalidateQueries({ queryKey: ["cycle-slots"] });
+      void qc.invalidateQueries({ queryKey: ["editable-cycle"] });
+      void qc.invalidateQueries({ queryKey: ["error-notebook-access"] });
       void qc.invalidateQueries({ queryKey: ["all-sessions"] });
       void qc.invalidateQueries({ queryKey: ["today"] });
       void qc.invalidateQueries({ queryKey: ["sessions"] });

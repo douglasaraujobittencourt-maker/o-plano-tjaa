@@ -20,7 +20,7 @@ import { ProgressCarousel } from "@/components/progress-carousel";
 import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
 import {selectPlannerSubjects,categoryChoices} from "@/lib/tribunal-subject-source";
 import {ProgressTribunalDots,ProgressTribunalLegend} from "@/components/tribunal-progress-colors";
-import {archiveTribunalSubject} from "@/lib/planner-api";
+import {archiveTribunalSubject,archiveSubjectError,type Subject} from "@/lib/planner-api";
 import { sumStudyMinutes, studyMinutesBy } from "@/lib/study-metrics";
 import { corBolinhaVisaoGeral } from "@/lib/caixa-subject-colors";
 
@@ -108,6 +108,8 @@ function Dashboard() {
       qc.invalidateQueries({ queryKey: ["subjects-blocks"] }),
       qc.invalidateQueries({ queryKey: ["cycle"] }),
       qc.invalidateQueries({ queryKey: ["cycle-slots"] }),
+      qc.invalidateQueries({ queryKey: ["editable-cycle"] }),
+      qc.invalidateQueries({ queryKey: ["error-notebook-access"] }),
       qc.invalidateQueries({ queryKey: ["today"] }),
       qc.invalidateQueries({ queryKey: ["perf"] }),
       qc.invalidateQueries({ queryKey: ["week-redacoes"] }),
@@ -244,6 +246,7 @@ function Dashboard() {
 
   // Modais de Edição
   const [editingSubject, setEditingSubject] = useState<any | null>(null);
+  const [deletingSubject,setDeletingSubject]=useState(false);
   const [name, setName] = useState("");
   const [color, setColor] = useState("#0284C7");
   const [plannedHours, setPlannedHours] = useState("4");
@@ -323,7 +326,19 @@ function Dashboard() {
     }
   };
 
-  const handleDeleteSubject=async(id:string)=>{if(!window.confirm("Remover a matéria das listas? O histórico será preservado; a matéria sairá do ciclo."))return;try{await archiveTribunalSubject(id);await refreshAllData();setEditingSubject(null);toast.success("Matéria removida.");}catch(e:any){toast.error(e.message);}};
+  const handleDeleteSubject=async(id:string)=>{
+    if(deletingSubject||!window.confirm("Remover a matéria de PDFs, videoaulas e do ciclo? As sessões e revisões registradas serão preservadas."))return;
+    setDeletingSubject(true);
+    try{
+      await archiveTribunalSubject(id);
+      await qc.cancelQueries({queryKey:["subjects"]});
+      qc.setQueryData<Subject[]>(["subjects"],previous=>previous?.filter(s=>s.id!==id));
+      setEditingSubject(null);
+      toast.success("Matéria removida. Histórico preservado.");
+      await refreshAllData();
+    }catch(error){toast.error(archiveSubjectError(error));void qc.invalidateQueries({queryKey:["subjects"]});}
+    finally{setDeletingSubject(false);}
+  };
 
   const handleCreateSubject = async () => {
     if(subjects.some(s=>s.name===name.trim())){toast.error("Esta matéria já está cadastrada.");return;}
@@ -875,7 +890,7 @@ function Dashboard() {
       </div>
 
       {/* Modais de Edição */}
-      <Dialog open={!!editingSubject} onOpenChange={(o) => !o && setEditingSubject(null)}>
+      <Dialog open={!!editingSubject} onOpenChange={(o) => !o && !deletingSubject && setEditingSubject(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar Matéria — {editingSubject?.name}</DialogTitle>
@@ -927,12 +942,12 @@ function Dashboard() {
           </div>
 
           <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
-            <Button variant="destructive" size="sm" onClick={() => handleDeleteSubject(editingSubject.id)} className="flex items-center gap-1">
-              <Trash2 className="w-4 h-4" /> Excluir
+            <Button variant="destructive" size="sm" disabled={deletingSubject} onClick={() => handleDeleteSubject(editingSubject.id)} className="flex items-center gap-1">
+              <Trash2 className="w-4 h-4" /> {deletingSubject?"Excluindo…":"Excluir"}
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setEditingSubject(null)}>Cancelar</Button>
-              <Button onClick={saveSubjectChanges}>Salvar Alterações</Button>
+              <Button variant="outline" disabled={deletingSubject} onClick={() => setEditingSubject(null)}>Cancelar</Button>
+              <Button disabled={deletingSubject} onClick={saveSubjectChanges}>Salvar Alterações</Button>
             </div>
           </DialogFooter>
         </DialogContent>

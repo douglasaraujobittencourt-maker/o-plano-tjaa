@@ -8,6 +8,9 @@ import { Progress } from "@/components/ui/progress";
 import { TrendingUp, Clock, CheckCircle2, Target, BarChart2, BookOpen, Layers } from "lucide-react";
 import { useState } from "react";
 import { sumStudyMinutes, studyMinutesBy } from "@/lib/study-metrics";
+import { ProgressTribunalDots, ProgressTribunalLegend } from "@/components/tribunal-progress-colors";
+import { performanceFilters, performanceTribunalLabel, visiblePerformanceRows, type PerformanceFilter, type PerformanceSort } from "@/lib/individual-performance";
+import { isWritingSubject } from "@/lib/tribunal-subject-source";
 import {
   BarChart,
   Bar,
@@ -45,10 +48,16 @@ function PerformancePage() {
 
   // Time filter: "all" (Todo o período) | "30d" (Últimos 30 dias)
   const [timeRange, setTimeRange] = useState<"all" | "30d">("all");
+  const [subjectFilter,setSubjectFilter]=useState<PerformanceFilter>("all");
+  const [subjectSort,setSubjectSort]=useState<PerformanceSort>("name");
 
-  const { data: subjects = [] } = useQuery({ queryKey: ["subjects"], queryFn: getSubjects });
-  const { data: sessions30d = [] } = useQuery({ queryKey: ["perf", from, today], queryFn: () => getSessionsBetween(from, today) });
-  const { data: allSessions = [] } = useQuery({ queryKey: ["all-sessions"], queryFn: getAllSessions });
+  // Mesmas consultas e histórico das demais telas; a atualização periódica
+  // cobre mudanças entre dispositivos mesmo quando Realtime não estiver habilitado.
+  const { data: subjects = [], isPending: subjectsLoading, isError: subjectsError } = useQuery({ queryKey: ["subjects"], queryFn: getSubjects, refetchInterval: 5000 });
+  const { data: sessions30d = [], isPending: recentLoading, isError: recentError } = useQuery({ queryKey: ["perf", from, today], queryFn: () => getSessionsBetween(from, today), refetchInterval: 5000 });
+  const { data: allSessions = [], isPending: historyLoading, isError: historyError } = useQuery({ queryKey: ["all-sessions"], queryFn: getAllSessions, refetchInterval: 5000 });
+  const tableLoading=subjectsLoading||(timeRange==="30d"?recentLoading:historyLoading);
+  const tableError=subjectsError||(timeRange==="30d"?recentError:historyError);
 
   const activeSessions = timeRange === "30d" ? sessions30d : allSessions;
 
@@ -73,6 +82,7 @@ function PerformancePage() {
 
     return {
       ...s,
+      minutes,
       hours,
       qDone,
       qCorrect,
@@ -80,6 +90,8 @@ function PerformancePage() {
       sessionsCount: subSessions.length,
     };
   });
+
+  const visibleStats=visiblePerformanceRows(subjectStats,subjectFilter,subjectSort);
 
   // Totais gerais com base no filtro
   const totalHours = +(sumStudyMinutes(activeSessions) / 60).toFixed(1);
@@ -212,9 +224,36 @@ function PerformancePage() {
             </p>
           </div>
           <Badge variant="outline" className="text-xs">
-            {subjects.length} matérias cadastradas
+            {subjectsLoading?"Carregando matérias…":subjectsError?"Cadastro indisponível":subjects.length+" matérias cadastradas"}
           </Badge>
         </div>
+
+        <ProgressTribunalLegend />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div role="group" aria-label="Filtrar matérias" className="flex flex-wrap gap-1.5">
+            {performanceFilters.map(filter=><button key={filter.value} type="button"
+              aria-pressed={subjectFilter===filter.value}
+              onClick={()=>setSubjectFilter(filter.value)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${subjectFilter===filter.value?"border-primary/50 bg-primary/10 text-foreground":"border-border bg-card text-muted-foreground hover:text-foreground"}`}>
+              {filter.label}
+            </button>)}
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="individual-performance-sort" className="text-xs text-muted-foreground whitespace-nowrap">Ordenar por</label>
+            <select id="individual-performance-sort" value={subjectSort} onChange={e=>setSubjectSort(e.target.value as PerformanceSort)}
+              className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs">
+              <option value="name">Nome (A–Z)</option>
+              <option value="hours">Horas estudadas (maior primeiro)</option>
+              <option value="accuracy">Taxa de acerto (maior primeiro)</option>
+            </select>
+          </div>
+        </div>
+        {!subjectsLoading&&!subjectsError&&<p className="text-xs text-muted-foreground" aria-live="polite">
+          Exibindo {visibleStats.length} de {subjects.length} matérias cadastradas. Matérias comuns aparecem uma única vez, com os registros compartilhados.
+          {subjectFilter!=="all"&&" O total geral permanece referente a todas as matérias no período selecionado."}
+        </p>}
+        {tableLoading&&<p role="status" className="text-xs text-muted-foreground">Carregando desempenho…</p>}
+        {tableError&&<p role="alert" className="text-sm text-destructive">Não foi possível atualizar todos os dados de desempenho. Tente novamente ao recarregar a página.</p>}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left border-collapse">
@@ -229,7 +268,8 @@ function PerformancePage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {subjectStats.map((row) => {
+              {!tableLoading&&!tableError&&visibleStats.length===0&&<tr><td colSpan={6} className="py-6 text-center text-sm text-muted-foreground">Nenhuma matéria neste filtro.</td></tr>}
+              {!tableLoading&&visibleStats.map((row) => {
                 // Color formatting for accuracy
                 let accColor = "text-muted-foreground";
                 let badgeVariant = "outline";
@@ -244,11 +284,11 @@ function PerformancePage() {
                     {/* Nome da Matéria */}
                     <td className="py-3 px-3 font-semibold">
                       <div className="flex items-center gap-2.5">
-                        <span
-                          className="w-3 h-3 rounded-full shrink-0 aspect-square"
-                          style={{ background: row.color || "#0284C7" }}
-                        />
-                        <span className="truncate">{row.name}</span>
+                        <ProgressTribunalDots subject={row} bank="bnb" />
+                        <div className="min-w-0">
+                          <span className="block">{row.name}</span>
+                          <span className="block text-[10px] font-normal text-muted-foreground">{performanceTribunalLabel(row)}</span>
+                        </div>
                       </div>
                     </td>
 
@@ -291,7 +331,7 @@ function PerformancePage() {
                           </div>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-xs">Sem questões</span>
+                        <div className="text-muted-foreground text-xs"><span className="block">—</span><span>Sem questões</span></div>
                       )}
                     </td>
 
@@ -303,9 +343,10 @@ function PerformancePage() {
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="border-secondary/30 text-[10px] text-secondary dark:border-primary/40 dark:text-primary">
-                          📘 Modo Teoria
+                          {isWritingSubject(row)?"✍️ Discursiva":"📘 Modo Teoria"}
                         </Badge>
                       )}
+                      {row.study_status==="pending"&&<span className="block text-[10px] text-muted-foreground">Na fila de espera</span>}
                     </td>
                   </tr>
                 );
@@ -315,9 +356,9 @@ function PerformancePage() {
               <tr className="bg-muted/60 font-bold border-t text-sm">
                 <td className="py-3 px-3">TOTAL GERAL</td>
                 <td className="py-3 px-3 text-right text-primary">{totalHours}h</td>
-                <td className="py-3 px-3 text-right text-foreground">{totalQ}</td>
-                <td className="py-3 px-3 text-right text-emerald-600 dark:text-emerald-400">{totalC}</td>
-                <td className="py-3 px-3 text-right text-violet-600 dark:text-violet-400">{overallAccuracy}%</td>
+                <td className="py-3 px-3 text-right text-foreground">{totalQ>0?totalQ:"—"}</td>
+                <td className="py-3 px-3 text-right text-emerald-600 dark:text-emerald-400">{totalQ>0?totalC:"—"}</td>
+                <td className="py-3 px-3 text-right text-violet-600 dark:text-violet-400">{totalQ>0?`${overallAccuracy}%`:<span className="text-xs text-muted-foreground">—<span className="block font-normal">Sem questões</span></span>}</td>
                 <td className="py-3 px-3"></td>
               </tr>
             </tbody>

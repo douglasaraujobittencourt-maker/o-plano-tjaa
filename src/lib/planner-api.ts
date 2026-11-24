@@ -1,4 +1,4 @@
-import { tribunalGroups, tribunalCatalog, tribunalInitialSlots, isTribunalSubject } from "@/lib/tribunal-catalog";
+import { tribunalGroups, tribunalCatalog, isTribunalSubject } from "@/lib/tribunal-catalog";
 import { localDateStr, addDaysStr } from "./dates";
 import { supabase } from "@/integrations/supabase/external-client";
 import { idCanonicoAssunto, idsOriginaisDoAssunto } from "@/lib/edital-topic-equivalence";
@@ -51,7 +51,8 @@ export async function getProfile(): Promise<Profile | null> {
 }
 
 export async function getSubjects(): Promise<Subject[]> {
-  const { data } = await supabase.from("subjects").select("*").order("ord");
+  const { data,error } = await supabase.from("subjects").select("*").order("ord");
+  if(error)throw error;
   return ((data ?? []) as Subject[]).filter(s => isTribunalSubject(s.name));
 }
 
@@ -160,6 +161,34 @@ export async function setSubjectStatus(id: string, status: "active" | "finalized
   if (error) throw error;
 }
 
+/** Conclusão explícita: preserva a posição e a carga do próximo bloco. */
+export async function completeTribunalSubject(subjectId:string):Promise<string|null>{
+ const {data:auth}=await supabase.auth.getUser();if(!auth.user)throw new Error("Sessão expirada.");
+ const uid=auth.user.id;
+ const subjects=await getSubjects();
+ const current=subjects.find(s=>s.id===subjectId);
+ if(!current||current.name==="Redação (Prova Discursiva)")throw new Error("Selecione uma matéria objetiva.");
+ if(current.study_status==="finalized")return null;
+ if(current.study_status!=="active")throw new Error("A matéria precisa estar no ciclo ativo.");
+ const m=tribunalCatalog.materias.find(m=>m.titulo_central===current.name);
+ const ids=tribunalCatalog.assuntos.filter(a=>a.materia_numero===m?.numero).map(a=>a.id);
+ if(!ids.length)throw new Error("Matéria sem assuntos.");
+ const {data:slots,error:slotErr}=await supabase.from("cycle_slots").select("*").eq("user_id",uid).order("ord");
+ if(slotErr)throw slotErr;
+ const slot=(slots??[]).find(s=>s.subject_id===subjectId);
+ if(!slot)throw new Error("Matéria sem posição no ciclo.");
+ const next=subjects.find(s=>s.study_status==="pending"&&s.name!=="Redação (Prova Discursiva)");
+ await markEditalTopicsStudied(subjectId,ids);
+ const {error:currentErr}=await supabase.from("subjects").update({study_status:"finalized",planned_hours_per_week:0}).eq("id",subjectId).eq("user_id",uid);if(currentErr)throw currentErr;
+ if(next){
+  const {error}=await supabase.from("subjects").update({study_status:"active",planned_hours_per_week:slot.hours_per_cycle}).eq("id",next.id).eq("user_id",uid);if(error)throw error;
+  const {error:moveErr}=await supabase.from("cycle_slots").update({subject_id:next.id,done_hours:0}).eq("id",slot.id).eq("user_id",uid);if(moveErr)throw moveErr;
+ }else{
+  const {error}=await supabase.from("cycle_slots").delete().eq("id",slot.id).eq("user_id",uid);if(error)throw error;
+ }
+ await announcePlannerProgress();return next?.name??null;
+}
+
 export async function logSession(input: {
   subject_id: string | null; kind: "leitura"|"questoes"|"revisao"|"redacao"|"flashcards";
   minutes: number; pages_read?: number; questions_done?: number; questions_correct?: number; notes?: string;
@@ -215,11 +244,8 @@ export async function logSession(input: {
     await scheduleLessonReviews(input.subject_id, input.topic || input.notes, input.edital_assunto_id);
   }
 
-  // Se o status da matéria foi informado como finalizada ou não
-  if (input.subject_id && input.is_subject_finished !== undefined) {
-    const newStatus = input.is_subject_finished ? "finalized" : "active";
-    await supabase.from("subjects").update({ study_status: newStatus }).eq("id", input.subject_id);
-  }
+  // Status do ciclo muda somente por ação explícita; revisões não reativam matérias.
+  if(input.subject_id && input.is_subject_finished===true)await completeTribunalSubject(input.subject_id);
 
   // Videoaula: abate os minutos assistidos do saldo da matéria
   if (input.subject_id && input.task === "Videoaula" && input.minutes > 0) {
@@ -475,9 +501,13 @@ export async function updateSubject(id: string, patch: {
 }) {
   const { error } = await (supabase.from("subjects") as any).update(patch).eq("id", id);
   if (error) throw error;
+  if(patch.planned_hours_per_week!==undefined){
+    const {error:slotError}=await supabase.from("cycle_slots").update({hours_per_cycle:patch.planned_hours_per_week}).eq("subject_id",id);
+    if(slotError)throw slotError;
+  }
 }
 
-export async function createSubject(input: { name: string; color?: string; weight?: number; pages?: number; pages_read?: number; total_questions?: number; video_minutes_total?: number; video_minutes_watched?: number }) {
+export async function createSubject(input: { name: string; color?: string; weight?: number; pages?: number; pages_read?: number; total_questions?: number; video_minutes_total?: number; video_minutes_watched?: number; planned_hours_per_week?:number }) {
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) throw new Error("no user");
   const { data: existing } = await supabase.from("subjects").select("ord").order("ord", { ascending: false }).limit(1);
@@ -489,6 +519,7 @@ export async function createSubject(input: { name: string; color?: string; weigh
     video_minutes_watched: input.video_minutes_watched || 0,
     color: input.color || "#0284C7",
     weight: input.weight || 2,
+    planned_hours_per_week:input.planned_hours_per_week??0,
     pages: input.pages || 0,
     pages_read: input.pages_read || 0,
     total_questions: input.total_questions || 0,
@@ -583,10 +614,10 @@ export async function ensureUserBootstrap():Promise<void>{
  const {data:existing,error:subjectError}=await supabase.from("subjects").select("id,name,ord,study_status").eq("user_id",uid).order("ord");
  if(subjectError)throw subjectError;
  const byName=new Map((existing??[]).map(s=>[s.name,s]));
- const first=prof?.exam_name!==PLAN_NAME;
+ const first=user.user_metadata?.tribunal_plan_version!==1;
  for(const [i,g] of tribunalGroups.entries()){
   const old=byName.get(g.name);
-  const row={name:g.name,ord:i,planned_hours_per_week:g.hours,exam_questions:g.questions??0,weight:g.points??2,study_status:g.hours?"active":"pending"};
+  const row={name:g.name,ord:i,planned_hours_per_week:g.hours,exam_questions:g.questions??0,weight:g.questions?Math.min(5,Math.max(1,Math.round((g.points??g.questions)/g.questions))):2,study_status:g.hours?"active":"pending"};
   if(old){if(first){const {error}=await (supabase.from("subjects") as any).update(row).eq("id",old.id).eq("user_id",uid);if(error)throw error;}continue;}
   const {data:created,error}=await (supabase.from("subjects") as any).insert({...row,user_id:uid,pages:0,pages_read:0,total_questions:0,color:["#16a34a","#2563eb","#d97706","#7c3aed","#0891b2"][i%5]}).select("id,name,ord,study_status").single();
   if(error)throw error;byName.set(g.name,created);
@@ -598,5 +629,6 @@ export async function ensureUserBootstrap():Promise<void>{
   const rows=tribunalGroups.filter(g=>g.hours).map((g,i)=>({user_id:uid,subject_id:byName.get(g.name)!.id,ord:i,hours_per_cycle:g.hours,done_hours:0}));
   const {error:slotError}=await supabase.from("cycle_slots").insert(rows as any);if(slotError)throw slotError;
   const {error:profileUpdate}=await supabase.from("profiles").update({exam_name:PLAN_NAME,weekly_goal_hours:12}).eq("id",uid);if(profileUpdate)throw profileUpdate;
+  const {error:versionError}=await supabase.auth.updateUser({data:{tribunal_plan_version:1}});if(versionError)throw versionError;
  }
 }

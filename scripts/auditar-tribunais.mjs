@@ -1,0 +1,18 @@
+import ts from "typescript";
+import {readFileSync} from "node:fs";
+import assert from "node:assert/strict";
+const load=async path=>{const source=readFileSync(path,"utf8");const result=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022},reportDiagnostics:true});assert.equal((result.diagnostics??[]).filter(d=>d.category===ts.DiagnosticCategory.Error).length,0);return import("data:text/javascript;base64,"+Buffer.from(result.outputText).toString("base64"));};
+const {tribunalCatalog:c,tribunalGroups:g,tribunalInitialSlots:slots}=await load("src/lib/tribunal-catalog.ts");
+const {tribunalStudyPlan:p}=await load("src/lib/tribunal-study-plan.ts");
+assert.equal(g.length,14);
+assert.equal(new Set(c.assuntos.map(a=>a.id)).size,c.assuntos.length);
+assert.ok(c.assuntos.every(a=>c.materias.some(m=>m.numero===a.materia_numero)));
+assert.ok(c.assuntos.every(a=>["Só BB","Só Caixa","Comum (Caixa + BB)"].includes(a.escopo)));
+assert.equal(g.reduce((n,x)=>n+(x.questions??0),0),60);
+assert.equal(g.reduce((n,x)=>n+(x.points??0),0),100);
+assert.equal(g.reduce((n,x)=>n+x.hours,0),12);
+assert.equal(p.sessions.length,6);
+assert.ok(p.sessions.every(s=>s.reduce((n,x)=>n+x.minutes,0)===120));
+for(const group of g)assert.equal(p.sessions.flat().filter(x=>x.subject===group.name).reduce((n,x)=>n+x.minutes,0),60*group.hours);
+assert.deepEqual(p.queue,g.filter(x=>!x.hours).map(x=>x.name));
+console.log("Catálogo e ciclo verificados:",g.length,"matérias",c.assuntos.length,"itens, 12h.");

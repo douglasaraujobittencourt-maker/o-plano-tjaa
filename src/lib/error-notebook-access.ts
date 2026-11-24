@@ -47,13 +47,9 @@ export async function getErrorNotebookAccess(): Promise<ErrorNotebookAccess> {
 
   for (const m of [...catalog.materias].sort((a,b) => a.numero-b.numero)) {
     const topics = catalog.assuntos.filter(a => a.materia_numero === m.numero);
-    if (!topics.length || !topics.every(a => etapaDoAssunto(etapas, a.id) === "Revisão 60D")) continue;
-    options.push({
-      value: "edital:" + m.numero,
-      name: m.titulo_central.replace(/^\d+\.\s*/, ""),
-      kind: "edital",
-      materiaNumero: m.numero,
-    });
+    if (!topics.length || !topics.every(a => ["Revisão 60D","Concluído"].includes(etapaDoAssunto(etapas,a.id)))) continue;
+    const subject=(subjects??[]).find(s=>s.name===m.titulo_central);
+    if(subject&&!options.some(o=>o.subjectId===subject.id))options.push({value:"subject:"+subject.id,name:subject.name,kind:"subject",subjectId:subject.id});
   }
 
   return {options, eligibleKeys: options.map(o => o.value)};

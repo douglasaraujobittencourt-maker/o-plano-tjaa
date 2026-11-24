@@ -184,7 +184,7 @@ function Dashboard() {
   const bankSubjects = subjects.filter(s => subjectBelongsToBank(s.name, bank));
   // Horas semanais por matéria
   const weeklySubjectData = bankSubjects.map((s) => {
-    const planejado = s.weight ? s.weight * 2 : 4;
+    const planejado = s.planned_hours_per_week ?? 0;
     const feito = +(weekHoursBySubject[s.id] ?? 0).toFixed(1);
     const restante = Math.max(0, +(planejado - feito).toFixed(1));
     const sigla = getSubjectSigla(s.name);
@@ -270,7 +270,7 @@ function Dashboard() {
     if (isNaN(num) || num < 0) return;
 
     try {
-      await updateSubject(s.id, { weight: num / 2 });
+      await updateSubject(s.id, { planned_hours_per_week: num });
       await refreshAllData();
       toast.success(`Horas planejadas de ${s.name} atualizadas para ${num}h!`);
     } catch (e: any) {
@@ -286,7 +286,7 @@ function Dashboard() {
     setName(s.name);
     // A cor mostrada no editor deve ser a mesma da bolinha exibida na Visão geral.
     setColor(corBolinhaVisaoGeral(s.name, s.color));
-    setPlannedHours(String((s.weight ? s.weight * 2 : 4)));
+    setPlannedHours(String(s.planned_hours_per_week ?? 0));
     setPages(String(s.pages || 0));
     setPagesRead(String(s.pages_read || 0));
     setVideoTotalH(String(+((s.video_minutes_total || 0) / 60).toFixed(2)));
@@ -296,11 +296,11 @@ function Dashboard() {
   const saveSubjectChanges = async () => {
     if (!editingSubject) return;
     try {
-      const weightVal = (Number(plannedHours) || 0) / 2;
+      const planned = Math.max(0, Number(plannedHours) || 0);
       await updateSubject(editingSubject.id, {
         name: name.trim(),
         color,
-        weight: weightVal,
+        planned_hours_per_week: planned,
         ...(editMode !== "video" ? {
           pages: Number(pages) || 0,
           pages_read: Number(pagesRead) || 0,
@@ -319,7 +319,7 @@ function Dashboard() {
   };
 
   const handleDeleteSubject = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta matéria?")) return;
+    toast.error("As matérias oficiais permanecem vinculadas ao edital. Altere a carga no ciclo."); return;
     try {
       await deleteSubject(id);
       await refreshAllData();
@@ -331,16 +331,18 @@ function Dashboard() {
   };
 
   const handleCreateSubject = async () => {
+    if(!subjectBelongsToBank(name.trim(),"bnb")){toast.error("Inclua apenas matérias do catálogo oficial.");return;}
+    if(subjects.some(s=>s.name===name.trim())){toast.error("Esta matéria já está cadastrada.");return;}
     if (!name.trim()) {
       toast.error("Insira o nome da matéria");
       return;
     }
     try {
-      const weightVal = (Number(plannedHours) || 0) / 2;
+      const planned = Math.max(0, Number(plannedHours) || 0);
       await createSubject({
         name: name.trim(),
         color,
-        weight: weightVal,
+        planned_hours_per_week: planned,
         pages: Number(pages) || 0,
         pages_read: Number(pagesRead) || 0,
         video_minutes_total: Math.round((Number(videoTotalH.replace(",", ".")) || 0) * 60),
@@ -389,7 +391,7 @@ function Dashboard() {
           </h1>
           <p className="mt-1 flex min-w-0 items-center gap-2 text-sm font-medium text-muted-foreground">
             <img src={tribunaisHeaderEmblem} alt="Emblema dos Tribunais" className="h-[36px] w-auto max-w-20 shrink-0 object-contain" />
-            <span className="min-w-0 break-words">{profile?.exam_name || "Técnico de Seguridade Social"}</span>
+            <span className="min-w-0 break-words">{profile?.exam_name || "TJGO + TJDFT"}</span>
           </p>
         </div>
         <div className="hidden shrink-0 md:col-start-2 md:row-start-1 md:block xl:col-start-3">
@@ -418,6 +420,7 @@ function Dashboard() {
         </div>
       </div>
 
+      <Card className="p-4 flex flex-wrap gap-3 justify-between items-center"><div><h2 className="font-semibold">Plano TJGO + TJDFT</h2><p className="text-sm text-muted-foreground">Quatro matérias objetivas · discursiva semanal · fila por prioridade</p></div><Link to="/app/cycle" className="text-sm font-semibold text-primary">Abrir ciclo de estudos</Link></Card>
       {/* QUADRO DE DESTAQUE PRINCIPAL (CAMPOS SOLICITADOS) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* 1. Percentual Coberto do Edital */}
@@ -885,7 +888,7 @@ function Dashboard() {
           <div className="space-y-4 py-2">
             <div>
               <Label htmlFor="subName">Nome da Matéria</Label>
-              <Input id="subName" value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
+              <Input id="subName" value={name} readOnly className="mt-1" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

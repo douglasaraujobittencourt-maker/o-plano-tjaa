@@ -8,12 +8,12 @@ import { Progress } from "@/components/ui/progress";
 import { Repeat, Layers, CheckCircle2, ArrowRightCircle, Plus, Minus, PenTool, Play, Trophy, AlertCircle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { localDateStr, addDaysStr } from "@/lib/dates";
-import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
-import { subjectBelongsToBank, subjectTopicIds } from "@/lib/bank-exams";
-import { getEditalCatalog } from "@/lib/edital-catalog";
+
+import { subjectBelongsToBank } from "@/lib/bank-exams";
+
 import { tribunalStudyPlan } from "@/lib/tribunal-study-plan";
 import { tribunalGroups } from "@/lib/tribunal-catalog";
-import { markEditalTopicsStudied, announcePlannerProgress } from "@/lib/planner-api";
+import { completeTribunalSubject, announcePlannerProgress } from "@/lib/planner-api";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/app/cycle")({
 });
 
 function CyclePage() {
-  const { bank } = useBankExam();
+  
   const qc = useQueryClient();
 
   // Fetch active cycle slots first to help map statuses if columns are missing
@@ -51,7 +51,7 @@ function CyclePage() {
 
   // Carrega somente as matérias bancárias reais cadastradas no planner.
   const { data: subjects = [], refetch: refetchSubjects } = useQuery({
-    queryKey: ["subjects-blocks", bank],
+    queryKey: ["subjects-blocks", "tribunais"],
     queryFn: async () => {
       const { data, error } = await supabase.from("subjects").select("*").order("ord");
       if (error) throw error;
@@ -98,88 +98,10 @@ function CyclePage() {
   const essaysWrittenThisWeek = weekSessions.length;
 
   // Finalize subject function
-  const handleFinalize = async (subjectId: string, name: string) => {
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-
-      const subNamesMap: Record<string, string[]> = {
-        "Língua Portuguesa": ["Língua Portuguesa"],
-        "Noções de Direito Administrativo e Lei Complementar nº 840/2011": ["Direito Administrativo", "Lei dos Servidores (LC 840)", "Noções de Direito Administrativo e Lei Complementar nº 840/2011"],
-        "Fundamentos, Organização, Gestão e Marcos Operacionais do SUAS": ["Marcos Operacionais do SUAS", "Programas e Benefícios Socioassistenciais do DF", "Fundamentos, Organização, Gestão e Marcos Operacionais do SUAS"],
-        "Noções de Direito Constitucional": ["Direito Constitucional", "Noções de Direito Constitucional"],
-        "Redação (Prova Discursiva)": ["Redação", "Redação (Prova Discursiva)"],
-        "Arquivologia e Rotinas Administrativas": ["Arquivologia", "Cuidados e Rotinas Administrativas", "Arquivologia e Rotinas Administrativas"],
-        "Noções de Recursos Materiais, Patrimônio e Compras": ["Gestão de Materiais", "Licitações", "Noções de Recursos Materiais, Patrimônio e Compras"],
-        "Conhecimentos do Distrito Federal (Realidade do DF, RIDE, PDPM, LODF, Lei nº 7.484/2004, Noções de primeiros socorros)": ["Realidade do DF e RIDE", "Lei Orgânica do DF (Título VI)", "PDPM (II Plano)", "Carreira Pública de AS do DF (Lei 7.484)", "Primeiros Socorros", "Conhecimentos do Distrito Federal (Realidade do DF, RIDE, PDPM, LODF, Lei nº 7.484/2004, Noções de primeiros socorros)"],
-        "Lei Maria da Penha": ["Lei Maria da Penha"],
-      };
-
-      const subNames = subNamesMap[name] || [name];
-
-      const catalogoBB = await getEditalCatalog();
-      const ids = subjectTopicIds(name, "bnb", catalogoBB);
-      if (!ids.length) throw new Error("Matéria sem tópicos vinculados ao concurso ativo.");
-      await markEditalTopicsStudied(subjectId, ids);
-      await announcePlannerProgress();
-
-      // 1. Update status of all matching subjects to finalized
-      await supabase
-        .from("subjects")
-        .update({ study_status: "finalized" })
-        .in("name", subNames);
-
-      // 2. Remove from cycle slots
-      const { data: dbSubjects } = await supabase.from("subjects").select("id").in("name", subNames);
-      if (dbSubjects) {
-        const ids = dbSubjects.map(s => s.id);
-        await supabase
-          .from("cycle_slots")
-          .delete()
-          .in("subject_id", ids);
-      }
-
-      // 3. Find the next pending subject in the global queue
-      const nextPending = pendingSubjects[0];
-
-      if (nextPending) {
-        const nextSubNames = subNamesMap[nextPending.name] || [nextPending.name];
-        // Set next to active
-        await supabase
-          .from("subjects")
-          .update({ study_status: "active" })
-          .in("name", nextSubNames);
-
-        // Add to cycle slots
-        const { data: nextDbSubjects } = await supabase.from("subjects").select("id").in("name", nextSubNames);
-        if (nextDbSubjects) {
-          for (const sub of nextDbSubjects) {
-            const lastSlot = cycle[cycle.length - 1];
-            const nextOrd = lastSlot ? lastSlot.ord + 1 : 0;
-            await supabase.from("cycle_slots").insert({
-              user_id: u.user.id,
-              subject_id: sub.id,
-              ord: nextOrd,
-              hours_per_cycle: 1,
-              done_hours: 0
-            });
-          }
-        }
-
-        toast.success(`Parabéns! ${name} concluída. ${nextPending.name} foi ativada no ciclo! 🎉`);
-      } else {
-        toast.success(`Parabéns! ${name} concluída. Não há mais matérias pendentes na fila! 🏆`);
-      }
-
-      refetchSubjects();
-      refetchCycle();
-      qc.invalidateQueries({ queryKey: ["subjects"] });
-      qc.invalidateQueries({ queryKey: ["cycle"] });
-      qc.invalidateQueries({ queryKey: ["cycle-slots"] });
-      qc.invalidateQueries({ queryKey: ["edital-auto-progresso"] });
-    } catch (e: any) {
-      toast.error(e.message ?? "Erro ao concluir matéria");
-    }
+  const handleFinalize=async(subjectId:string,name:string)=>{
+    if(!window.confirm("Concluir todos os assuntos de "+name+" (TJGO e TJDFT quando aplicável) e avançar a fila?"))return;
+    try{const next=await completeTribunalSubject(subjectId);toast.success(next?name+" concluída. Próxima: "+next:name+" concluída.");await refetchSubjects();await refetchCycle();qc.invalidateQueries();}
+    catch(e:any){toast.error(e.message??"Erro ao concluir matéria");}
   };
 
   // Adjust maintenance questions manually
@@ -194,88 +116,24 @@ function CyclePage() {
     refetchSubjects();
   };
 
-  const updateStatus = async (groupName: string, newStatus: string) => {
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-
-      const subNamesMap: Record<string, string[]> = {
-        "Língua Portuguesa": ["Língua Portuguesa"],
-        "Noções de Direito Administrativo e Lei Complementar nº 840/2011": ["Direito Administrativo", "Lei dos Servidores (LC 840)", "Noções de Direito Administrativo e Lei Complementar nº 840/2011"],
-        "Fundamentos, Organização, Gestão e Marcos Operacionais do SUAS": ["Marcos Operacionais do SUAS", "Programas e Benefícios Socioassistenciais do DF", "Fundamentos, Organização, Gestão e Marcos Operacionais do SUAS"],
-        "Noções de Direito Constitucional": ["Direito Constitucional", "Noções de Direito Constitucional"],
-        "Redação (Prova Discursiva)": ["Redação", "Redação (Prova Discursiva)"],
-        "Arquivologia e Rotinas Administrativas": ["Arquivologia", "Cuidados e Rotinas Administrativas", "Arquivologia e Rotinas Administrativas"],
-        "Noções de Recursos Materiais, Patrimônio e Compras": ["Gestão de Materiais", "Licitações", "Noções de Recursos Materiais, Patrimônio e Compras"],
-        "Conhecimentos do Distrito Federal (Realidade do DF, RIDE, PDPM, LODF, Lei nº 7.484/2004, Noções de primeiros socorros)": ["Realidade do DF e RIDE", "Lei Orgânica do DF (Título VI)", "PDPM (II Plano)", "Carreira Pública de AS do DF (Lei 7.484)", "Primeiros Socorros", "Conhecimentos do Distrito Federal (Realidade do DF, RIDE, PDPM, LODF, Lei nº 7.484/2004, Noções de primeiros socorros)"],
-        "Lei Maria da Penha": ["Lei Maria da Penha"],
-      };
-
-      const subNames = subNamesMap[groupName] || [groupName];
-      if (newStatus === "finalized") {
-        const matching = subjects.find((s: any) => s.name === groupName);
-        if (!matching) throw new Error("Matéria fora do concurso ativo.");
-        const catalogoBB = await getEditalCatalog();
-        const ids = subjectTopicIds(groupName, "bnb", catalogoBB);
-        if (!ids.length) throw new Error("Matéria sem tópicos do edital ativo.");
-        await markEditalTopicsStudied(matching.id, ids);
-        await announcePlannerProgress();
-      }
-
-      await supabase
-        .from("subjects")
-        .update({ study_status: newStatus })
-        .in("name", subNames);
-
-      if (newStatus === "active") {
-        const { data: dbSubjects } = await supabase.from("subjects").select("id, name").in("name", subNames);
-        if (dbSubjects) {
-          for (const sub of dbSubjects) {
-            const exists = cycle.some((slot: any) => slot.subject_id === sub.id);
-            if (!exists) {
-              const lastSlot = cycle[cycle.length - 1];
-              const nextOrd = lastSlot ? lastSlot.ord + 1 : 0;
-              await supabase.from("cycle_slots").insert({
-                user_id: u.user.id,
-                subject_id: sub.id,
-                ord: nextOrd,
-                hours_per_cycle: 1,
-                done_hours: 0
-              });
-            }
-          }
-        }
-      } else {
-        const { data: dbSubjects } = await supabase.from("subjects").select("id").in("name", subNames);
-        if (dbSubjects) {
-          const ids = dbSubjects.map(s => s.id);
-          await supabase.from("cycle_slots").delete().in("subject_id", ids);
-        }
-      }
-
-      toast.success(
-        newStatus === "active"
-          ? `"${groupName}" movida para o Modo Teoria`
-          : newStatus === "finalized"
-            ? `"${groupName}" movida para o Modo Revisão`
-            : `"${groupName}" voltou para a fila (Aguardando)`
-      );
-
-      refetchSubjects();
-      refetchCycle();
-      qc.invalidateQueries({ queryKey: ["subjects"] });
-      qc.invalidateQueries({ queryKey: ["cycle"] });
-      qc.invalidateQueries({ queryKey: ["cycle-slots"] });
-      qc.invalidateQueries({ queryKey: ["edital-auto-progresso"] });
-    } catch (e: any) {
-      toast.error(e.message ?? "Erro ao atualizar status");
-    }
+  const updateStatus=async(groupName:string,newStatus:string)=>{
+    const s=subjects.find(s=>s.name===groupName);
+    if(!s||s.name==="Redação (Prova Discursiva)")return;
+    if(newStatus==="finalized"&&s.study_status==="active")return handleFinalize(s.id,s.name);
+    toast.error("O ciclo mantém quatro matérias objetivas. Conclua uma matéria ativa para liberar a próxima.");
   };
+  const slotNames=new Map(cycle.map(s=>[s.ord,s.subject?.name??""]));
+  const currentSessions=tribunalStudyPlan.sessions.map(session=>session.map(slot=>{
+    const g=tribunalGroups.find(g=>g.name===slot.subject);
+    const ord=g?.id===214?4:(g?.id??201)-201;
+    const current=cycle.find(s=>s.ord===ord);
+    const initial=tribunalGroups.find(g=>g.id===(ord===4?214:201+ord));
+    return {subject:slotNames.get(ord)||"Revisão / vaga",minutes:current&&initial?.hours?Math.round(slot.minutes*current.hours_per_cycle/initial.hours):slot.minutes};
+  }));
 
   return (
     <div className="px-4 py-4 pb-24 sm:p-6 md:pb-8 max-w-7xl mx-auto space-y-6">
       {/* Page Header */}
-      <BankExamSelector />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
@@ -296,11 +154,11 @@ function CyclePage() {
       </div>
 
       <Card className="p-5 space-y-3">
-        <h2 className="font-semibold">Ciclo inicial · 12 horas líquidas</h2>
+        <h2 className="font-semibold">Ciclo de estudos · sessões alternadas</h2>
         <p className="text-xs text-muted-foreground">Sessões flexíveis, sem dia fixo. Retome de onde parou. Revisões e questões dentro de cada bloco.</p>
-        {tribunalStudyPlan.sessions.map((session,i)=><div key={i} className="flex flex-wrap gap-2 text-sm border-b pb-2"><strong>Sessão {i+1}</strong>{session.map((slot,j)=><span key={j}>{slot.subject} · {slot.minutes} min</span>)}</div>)}
-        <p className="text-sm">{tribunalGroups.filter(g=>g.hours).map(g=>g.name+" "+g.hours.toLocaleString("pt-BR")+"h").join(" · ")}</p>
-        <p className="text-xs text-muted-foreground">Quando uma matéria objetiva termina, passa a revisão e entra a próxima da fila. A tabela acima é a referência inicial.</p>
+        {currentSessions.map((session,i)=><div key={i} className="flex flex-wrap gap-2 text-sm border-b pb-2"><strong>Sessão {i+1}</strong>{session.map((slot,j)=><span key={j}>{slot.subject} · {slot.minutes} min</span>)}</div>)}
+        <p className="text-sm">{cycle.filter(s=>s.subject&&subjectBelongsToBank(s.subject.name,"bnb")).map(s=>s.subject?.name+" "+s.hours_per_cycle.toLocaleString("pt-BR")+"h").join(" · ")}</p>
+        <p className="text-xs text-muted-foreground">Quando uma matéria objetiva termina, passa a revisão e entra a próxima da fila. A próxima disciplina assume a posição e a carga da anterior.</p>
       </Card>
       {/* Redação Banner */}
       {isRedactionActive && (
@@ -479,6 +337,7 @@ function CyclePage() {
                     {statusBadge}
                     <select
                       value={s.study_status}
+                      disabled={s.study_status!=="active"||s.name==="Redação (Prova Discursiva)"}
                       onChange={(e) => updateStatus(s.name, e.target.value)}
                       className="bg-muted text-muted-foreground border border-border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer font-medium"
                     >

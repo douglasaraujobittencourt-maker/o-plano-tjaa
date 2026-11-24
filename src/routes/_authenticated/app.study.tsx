@@ -59,6 +59,7 @@ function StudyPage() {
     setSubject("");
     setEditalMateria("");
     setEditalAssunto("");
+    setIsSubjectFinished(false);setKind("leitura");
   }, [bank]);
   const assuntosDoEdital = bankTopicsForMatter(Number(editalMateria), bank, editalCatalog)
     .sort((a,b) => a.id - b.id);
@@ -67,7 +68,7 @@ function StudyPage() {
     setEditalMateria(numero); setEditalAssunto("");
     const m=editalCatalog?.materias.find(m=>String(m.numero)===numero);
     const s=bankSubjects.find(s=>s.name===m?.titulo_central);
-    setSubject(s?.id??""); setIsSubjectFinished(s?.study_status==="finalized");
+    setSubject(s?.id??""); setIsSubjectFinished(false);
     if(s?.name==="Redação (Prova Discursiva)")setKind("redacao");
     else if(kind==="redacao")setKind("leitura");
   };
@@ -84,7 +85,7 @@ function StudyPage() {
     const sel = subjects.find((s) => s.id === val);
     if (sel) {
       const isFin = sel.study_status === "finalized";
-      setIsSubjectFinished(isFin);
+      setIsSubjectFinished(false);
       if (isFin) {
         setKind("questoes");
       }
@@ -133,14 +134,10 @@ function StudyPage() {
       let materiaId: string | null = subject || null;
       if (!subject || subjectMatterNumber(subjects.find(s=>s.id===subject)?.name??"",bank)!==Number(editalMateria)) throw new Error("A matéria selecionada deve corresponder ao assunto do edital.");
       if (assuntoSelecionado && !materiaId) throw new Error("Escolha a matéria do planner para vincular o assunto.");
-      if (isSubjectFinished && materiaId) {
-        const nomeMateria = subjects.find(s => s.id === materiaId)?.name ?? "";
-        const topicos = subjectTopicIds(nomeMateria, "bnb", editalCatalog);
-        if (!topicos.length) throw new Error("A matéria não possui assuntos mapeados neste edital.");
-        await markEditalTopicsStudied(materiaId, topicos);
-      } else if (isLessonFinished && materiaId && assuntoSelecionado) {
-        await markEditalTopicsStudied(materiaId, [idCanonicoAssunto(assuntoSelecionado.id)]);
-      }
+      const chosen=subjects.find(s=>s.id===materiaId);
+      if(kind==="redacao"&&chosen?.name!=="Redação (Prova Discursiva)")throw new Error("Selecione a matéria de Discursiva.");
+      if(chosen?.name==="Redação (Prova Discursiva)"&&kind!=="redacao")throw new Error("Use o tipo Discursiva.");
+      if(isSubjectFinished&&chosen?.study_status!=="active")throw new Error("Somente uma matéria ativa pode avançar na fila.");
       await logSession({
         subject_id: materiaId,
         edital_assunto_id: assuntoSelecionado ? idCanonicoAssunto(assuntoSelecionado.id) : null,
@@ -154,7 +151,7 @@ function StudyPage() {
         questions_correct: qc2,
         notes,
         is_lesson_finished: isLessonFinished,
-        is_subject_finished: materiaId ? isSubjectFinished : undefined,
+        is_subject_finished: isSubjectFinished || undefined,
       });
       return materiaId;
     },
@@ -169,14 +166,14 @@ function StudyPage() {
         toast.success("Sessão registrada! +XP ganho 🔥");
       }
       timer.reset();
-      setPages(0); setVideoMin(0); setQ(0); setQc2(0); setNotes(""); setIsLessonFinished(false);
+      setPages(0); setVideoMin(0); setQ(0); setQc2(0); setNotes(""); setIsLessonFinished(false);setIsSubjectFinished(false);
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e.message),
   });
 
   // Edit / delete sessions
-  type EditState = { id: string; subject_id: string; kind: "leitura"|"video"|"questoes"; minutes: number; pages_read: number; questions_done: number; questions_correct: number; notes: string };
+  type EditState = { id: string; subject_id: string; kind: "leitura"|"video"|"questoes"|"redacao"; minutes: number; pages_read: number; questions_done: number; questions_correct: number; notes: string };
   const [editSession, setEditSession] = useState<EditState | null>(null);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
 
@@ -186,7 +183,7 @@ function StudyPage() {
       await updateSession(editSession.id, {
         subject_id: editSession.subject_id || null,
         kind: editSession.kind === "video" ? "leitura" : editSession.kind,
-        task: editSession.kind === "video" ? "Videoaula" : editSession.kind === "leitura" ? "Leitura de PDF" : "Questões",
+        task: editSession.kind === "redacao" ? "Discursiva" : editSession.kind === "video" ? "Videoaula" : editSession.kind === "leitura" ? "Leitura de PDF" : "Questões",
         minutes: Math.max(1, editSession.minutes),
         pages_read: editSession.pages_read,
         questions_done: editSession.questions_done,
@@ -358,6 +355,7 @@ function StudyPage() {
             <Checkbox
               id="subjectFinished"
               checked={isSubjectFinished}
+              disabled={subjects.find(s=>s.id===subject)?.study_status!=="active" || editalMateria==="214"}
               onCheckedChange={(checked) => setIsSubjectFinished(!!checked)}
               className="mt-0.5 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
             />
@@ -366,7 +364,7 @@ function StudyPage() {
                 Matéria finalizada (Teoria 100% concluída)? 🎓
               </Label>
               <p className="text-xs text-muted-foreground">
-                Marca a matéria inteira como concluída e a transfere para o <strong>Modo Revisão</strong> (foco em questões semanais).
+                Confirme apenas quando tiver concluído todos os assuntos dos dois tribunais desta matéria. Ela vai para revisão e a próxima da fila assume sua carga.
               </p>
             </div>
           </div>
@@ -394,7 +392,7 @@ function StudyPage() {
               <span className="flex-1">{s.subject?.name ?? "Sem matéria"} · <span className="text-muted-foreground">{s.task === "Videoaula" ? "Videoaula" : s.kind === "leitura" ? "Leitura" : s.kind === "questoes" ? "Questões" : s.kind}</span></span>
               <span className="text-muted-foreground text-xs">{s.minutes} min · {s.pages_read} pg · {s.questions_correct}/{s.questions_done} q</span>
               <Button size="icon" variant="ghost" onClick={() => setEditSession({
-                id: s.id, subject_id: s.subject_id ?? "", kind: s.task === "Videoaula" ? "video" : s.kind === "questoes" ? "questoes" : "leitura", minutes: s.minutes,
+                id: s.id, subject_id: s.subject_id ?? "", kind: s.kind === "redacao" ? "redacao" : s.task === "Videoaula" ? "video" : s.kind === "questoes" ? "questoes" : "leitura", minutes: s.minutes,
                 pages_read: s.pages_read, questions_done: s.questions_done, questions_correct: s.questions_correct,
                 notes: s.notes ?? "",
               })}><Pencil className="w-4 h-4" /></Button>
@@ -425,6 +423,7 @@ function StudyPage() {
                       <SelectItem value="leitura">Leitura / Teoria</SelectItem>
                       <SelectItem value="video">Videoaulas / Teoria</SelectItem>
                       <SelectItem value="questoes">Revisão / Questões</SelectItem>
+                      <SelectItem value="redacao">Discursiva / Redação</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

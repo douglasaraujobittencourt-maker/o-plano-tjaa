@@ -40,7 +40,7 @@ function EditalPage(){
      <AccordionTrigger className="hover:no-underline"><div className="w-full text-left pr-4">
      <div className="flex flex-wrap justify-between gap-2"><span className="font-semibold">{m.titulo_central}</span><span className="text-xs text-muted-foreground">{count}/{all.length}</span></div>
      <div className="text-xs text-muted-foreground">{m.ciclo==="Ciclo 1"?"Ciclo inicial":"Fila de espera"} · {scopeLabel(m.escopo)}</div><Progress className="mt-2 h-1" value={100*count/all.length}/></div></AccordionTrigger>
-     <AccordionContent><ul className="divide-y divide-border/60">{topics.map(a=><li key={a.id} className="py-3 flex flex-wrap justify-between gap-2">
+     <AccordionContent>{m.numero===205&&<p className="text-xs text-muted-foreground py-2">A Constituição do Estado de Goiás, também exigida nesta disciplina, está vinculada uma única vez em Direito Constitucional.</p>}<ul className="divide-y divide-border/60">{topics.map(a=><li key={a.id} className="py-3 flex flex-wrap justify-between gap-2">
       <div className="flex-1 min-w-[180px]"><p className="text-sm">{a.topico_central}</p><Badge variant="outline" className="mt-1">{scopeLabel(a.escopo)}</Badge></div>
       <span className="text-xs text-muted-foreground">{progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)}</span></li>)}</ul></AccordionContent>
     </AccordionItem>})}

@@ -1,6 +1,6 @@
 import type { Catalog, Assunto } from "@/lib/edital-caixa-bb-data";
 import type { BnbCatalog } from "@/lib/edital-bnb-data";
-import { tribunalGroups, tribunalCatalog } from "@/lib/tribunal-catalog";
+import { tribunalCatalog } from "@/lib/tribunal-catalog";
 // IDs legados somente para compatibilidade com componentes existentes.
 export type BankExam = "bb" | "caixa" | "bnb";
 export const BANK_LABELS:Record<BankExam,string>={bb:"TJGO",caixa:"TJDFT",bnb:"TJGO + TJDFT"};

@@ -7,7 +7,7 @@ test("mesma legenda e seleção nos consumidores",()=>{
  expect(subjectCategories(portuguese,"caixa")).toEqual(["dfBasic"]);
  expect(subjectCategories(law,"bnb")).toEqual(["goSpecific","dfSpecific"]);
  expect(PROGRESS_TRIBUNAL_LEGEND.dfBasic.color).toBe("#0284C7");
- expect(PROGRESS_TRIBUNAL_LEGEND.dfSpecific.color).toBe("#0F172A");
+ expect(PROGRESS_TRIBUNAL_LEGEND.dfSpecific.color).toBe("#1E3A8A");
  expect(subjectCategories({name:"Redação (Prova Discursiva)"},"bnb")).toEqual(["writing"]);
 });
 test("assuntos pertencem à matéria e ao tribunal selecionados",()=>{

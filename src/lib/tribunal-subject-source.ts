@@ -5,7 +5,7 @@ export const PROGRESS_TRIBUNAL_LEGEND={
  goBasic:{label:"TJ Goiás — Conhecimentos Básicos",color:"#28A745"},
  goSpecific:{label:"TJ Goiás — Conhecimentos Específicos",color:"#EACB00"},
  dfBasic:{label:"TJDFT — Conhecimentos Básicos",color:"#0284C7"},
- dfSpecific:{label:"TJDFT — Conhecimentos Específicos",color:"#0F172A"},
+ dfSpecific:{label:"TJDFT — Conhecimentos Específicos",color:"#1E3A8A"},
  writing:{label:"Redação (TJ Goiás e TJDFT)",color:"#D1D5DB"},
 } as const;
 export type ProgressCategory=keyof typeof PROGRESS_TRIBUNAL_LEGEND;

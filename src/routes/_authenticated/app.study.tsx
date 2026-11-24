@@ -5,6 +5,7 @@ import { getSubjects, getTodaySessions, logSession, updateSession, deleteSession
 import {selectPlannerSubjects,topicsForSubject,isWritingSubject,subjectMatchesExam} from "@/lib/tribunal-subject-source";
 import {ProgressTribunalDots,ProgressTribunalLegend} from "@/components/tribunal-progress-colors";
 import {TribunalTopicEditor} from "@/components/tribunal-topic-editor";
+import {getEditableCycle} from "@/lib/editable-cycle-api";
 import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
 import { idCanonicoAssunto } from "@/lib/edital-topic-equivalence";
 import { scopeLabel } from "@/lib/tribunal-catalog";
@@ -72,6 +73,7 @@ function StudyPage() {
   };
 
   const timer = useStudyTimer();
+  const {data: plannedCycle}=useQuery({queryKey:["editable-cycle"],queryFn:getEditableCycle,refetchInterval:5000});
   const [durationMin, setDurationMin] = useState<string>(String(Math.round(timer.duration / 60)));
   useEffect(() => { setDurationMin(String(Math.round(timer.duration / 60))); }, [timer.duration]);
 
@@ -212,6 +214,13 @@ function StudyPage() {
           <BankExamSelector />
         </div>
         <ProgressTribunalLegend />
+        {plannedCycle&&plannedCycle.sessions.length>0&&<details className="rounded-lg border p-3 text-sm">
+          <summary className="cursor-pointer font-medium">Blocos planejados do ciclo</summary>
+          <div className="mt-2 space-y-2">
+          {plannedCycle.sessions.map((session,i)=>{const blocks=session.filter(b=>bankSubjects.some(s=>s.id===b.subjectId));return blocks.length>0&&<div key={i} className="space-y-1"><p className="text-xs font-semibold text-muted-foreground">Sessão {i+1}</p><div className="flex flex-wrap gap-1.5">{blocks.map((block,j)=>{const s=bankSubjects.find(s=>s.id===block.subjectId)!;return <Button key={j} size="sm" variant="outline" className="h-auto whitespace-normal text-left" disabled={timer.running||timer.elapsed>0} onClick={()=>{handleSelectSubject(s.id);timer.setDuration(block.minutes*60);}}><ProgressTribunalDots subject={s} bank={bank}/>{s.name} · {block.minutes} min</Button>;})}</div></div>;})}
+          <p className="text-xs text-muted-foreground">Escolha um bloco para preencher matéria e duração antes de iniciar. Nenhum tempo estudado é registrado automaticamente.</p>
+          </div>
+        </details>}
         <div className="grid md:grid-cols-2 gap-3">
           <div>
             <Label>Matéria</Label>

@@ -12,8 +12,7 @@ import { localDateStr, addDaysStr } from "@/lib/dates";
 import {subjectMatchesExam,isWritingSubject} from "@/lib/tribunal-subject-source";
 import {getSubjects} from "@/lib/planner-api";
 
-import { tribunalStudyPlan } from "@/lib/tribunal-study-plan";
-import { tribunalGroups } from "@/lib/tribunal-catalog";
+import {EditableCycleCard} from "@/components/editable-cycle-card";
 import { completeTribunalSubject, announcePlannerProgress } from "@/lib/planner-api";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -121,15 +120,6 @@ function CyclePage() {
     if(newStatus==="finalized"&&s.study_status==="active")return handleFinalize(s.id,s.name);
     toast.error("O ciclo mantém quatro matérias objetivas. Conclua uma matéria ativa para liberar a próxima.");
   };
-  const validSlots=cycle.filter(s=>s.subject&&subjectMatchesExam(s.subject as any,"bnb"));
-  const slotNames=new Map(validSlots.map(s=>[s.ord,s.subject?.name??""]));
-  const currentSessions=tribunalStudyPlan.sessions.map(session=>session.map(slot=>{
-    const g=tribunalGroups.find(g=>g.name===slot.subject);
-    const ord=g?.id===214?4:(g?.id??201)-201;
-    const current=validSlots.find(s=>s.ord===ord);
-    const initial=tribunalGroups.find(g=>g.id===(ord===4?214:201+ord));
-    return {subject:slotNames.get(ord)||"Revisão / vaga",minutes:current&&initial?.hours?Math.round(slot.minutes*current.hours_per_cycle/initial.hours):slot.minutes};
-  }));
 
   return (
     <div className="px-4 py-4 pb-24 sm:p-6 md:pb-8 max-w-7xl mx-auto space-y-6">
@@ -140,7 +130,7 @@ function CyclePage() {
             <Repeat className="w-6 h-6 text-primary" /> Panorama Geral do Ciclo de Estudos
           </h1>
           <p className="text-muted-foreground text-sm">
-            TJGO prioritário · TJDFT em seguida · quatro matérias objetivas ativas e discursiva semanal.
+            TJGO prioritário · TJDFT em seguida · sessões personalizadas e discursiva semanal.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -153,13 +143,7 @@ function CyclePage() {
         </div>
       </div>
 
-      <Card className="p-5 space-y-3">
-        <h2 className="font-semibold">Ciclo de estudos · sessões alternadas</h2>
-        <p className="text-xs text-muted-foreground">Sessões flexíveis, sem dia fixo. Retome de onde parou. Revisões e questões dentro de cada bloco.</p>
-        {currentSessions.map((session,i)=><div key={i} className="flex flex-wrap gap-2 text-sm border-b pb-2"><strong>Sessão {i+1}</strong>{session.map((slot,j)=><span key={j}>{slot.subject} · {slot.minutes} min</span>)}</div>)}
-        <p className="text-sm">{cycle.filter(s=>s.subject&&subjectMatchesExam(s.subject as any,"bnb")).map(s=>s.subject?.name+" "+s.hours_per_cycle.toLocaleString("pt-BR")+"h").join(" · ")}</p>
-        <p className="text-xs text-muted-foreground">Quando uma matéria objetiva termina, passa a revisão e entra a próxima da fila. A próxima disciplina assume a posição e a carga da anterior.</p>
-      </Card>
+      <EditableCycleCard subjects={subjects}/>
       {/* Redação Banner */}
       {isRedactionActive && (
         <Card className="p-5 border-primary/40 bg-gradient-to-r from-primary/10 via-card to-card card-elevated flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -169,7 +153,7 @@ function CyclePage() {
               <span>✍️ Redação da Semana (Meta Ativa)</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Uma hora por ciclo: teoria e prática desde o começo; avance para uma discursiva semanal.
+              Carga planejada: {redactionSubject?.planned_hours_per_week?.toLocaleString("pt-BR")??"0"}h por ciclo; avance para uma discursiva semanal.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">

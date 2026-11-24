@@ -662,6 +662,8 @@ export async function resetAllStudyData() {
     weekly_goal_questions: 100,
   }).eq("id", uid)).error);
   await ensureUserBootstrap(true);
+  const {error:layoutError}=await supabase.auth.updateUser({data:{planner_cycle_layout_v1:null}});
+  if(layoutError)throw layoutError;
 }
 
 

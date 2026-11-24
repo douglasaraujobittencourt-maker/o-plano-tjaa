@@ -72,3 +72,28 @@ test("filtros respeitam matérias novas e categorias da fonte única, não o nom
  expect(visiblePerformanceRows([custom],"writing","name")).toEqual([]);
  expect(performanceTribunalLabel(custom)).toBe("TJ Goiás + TJDFT");
 });
+
+import {resolveCycle,cycleTotals,serializeCycle,validateCycle} from "./editable-cycle";
+const editableSlots=[["a","201",4],["b","202",2.5],["c","203",2.5],["d","204",2],["e","214",1]].map(([id,subject_id,hours_per_cycle],ord)=>({id,subject_id,hours_per_cycle,ord,done_hours:0}));
+test("ciclo inicial conserva seis sessões e 720 minutos",()=>{
+ const sessions=resolveCycle(editableSlots,null);
+ expect(sessions).toHaveLength(6);expect(sessions.map(s=>s.reduce((n,b)=>n+b.minutes,0))).toEqual([120,120,120,120,120,120]);
+ expect([...cycleTotals(sessions).values()].reduce((n,m)=>n+m,0)).toBe(720);
+});
+test("ciclo personalizado mantém divisão em sessões e substituição da fila por slot",()=>{
+ const sessions=[[{subjectId:"201",minutes:35},{subjectId:"202",minutes:25}],[{subjectId:"201",minutes:25}]];
+ const custom=[{...editableSlots[0],hours_per_cycle:1},{...editableSlots[1],hours_per_cycle:25/60}];
+ const layout=serializeCycle(sessions,new Map(custom.map(s=>[s.subject_id,s])));
+ expect(resolveCycle(custom,layout)).toEqual(sessions);
+ expect(resolveCycle([{...custom[0],subject_id:"205"},custom[1]],layout)[0][0]).toEqual({subjectId:"205",minutes:35});
+ expect(resolveCycle([], {version:1,sessions:[]})).toEqual([]);
+});
+test("redistribuição conserva minutos inteiros, exclusão não recria vagas",()=>{
+ const layout={version:1,sessions:[[{slotId:"a",minutes:30}],[{slotId:"a",minutes:30}],[{slotId:"a",minutes:30}],[{slotId:"b",minutes:30}]]};
+ const resolved=resolveCycle([{...editableSlots[0],hours_per_cycle:1/60}],layout);
+ expect(resolved.flat()).toEqual([{subjectId:"201",minutes:1}]);
+ expect(()=>validateCycle([[{subjectId:"201",minutes:0}]],new Set(["201"]))).toThrow();
+ expect(()=>validateCycle([[{subjectId:"unknown",minutes:30}]],new Set(["201"]))).toThrow();
+ expect(()=>validateCycle([[]],new Set())).toThrow();
+ expect(()=>validateCycle([],new Set())).not.toThrow();
+});

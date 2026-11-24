@@ -29,3 +29,13 @@ test("adição, edição e arquivamento propagam para a mesma fonte",()=>{
  expect(catalogFromSubjects([archived]).assuntos).toEqual([]);
 });
 test("modo legado não exige migração para ler assuntos oficiais",()=>expect(topicsForSubject({name:"Língua Portuguesa"},"bb").length).toBeGreaterThan(0));
+
+test("metadados legados são aplicados mesmo após a migração e preservam IDs",()=>{
+ const old=law.tribunal_data.topics[0],other=law.tribunal_data.topics[1];
+ const edited={...law,topic_overrides:{[old.id]:{title:"Renomeado",scope:old.scope},[other.id]:{removed:true}}};
+ const result=topicsForSubject(edited,"bnb");
+ expect(result.find(t=>t.id===old.id).topico_central).toBe("Renomeado");
+ expect(result.some(t=>t.id===other.id)).toBe(false);
+ expect(law.tribunal_data.topics.length).toBe(result.length+1);
+ expect(catalogFromSubjects([edited]).assuntos).toEqual(result);
+});

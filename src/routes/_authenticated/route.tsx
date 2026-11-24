@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, useRouter, useLocation, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/external-client";
-import { LayoutDashboard, Clock, Layers, Brain, TrendingUp, BookOpenCheck, Settings2, LogOut, Menu } from "lucide-react";
+import { LayoutDashboard, Clock, Layers, Brain, TrendingUp, BookOpenCheck, Settings2, LogOut, Menu, Repeat, FileSearch } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProfile } from "@/lib/planner-api";
 import { UserAvatar } from "@/components/user-avatar";
@@ -31,13 +31,13 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const NAV = [
-  { to: "/app", label: "Visão geral", icon: LayoutDashboard },
+  { to: "/app", label: "Visão Geral", icon: LayoutDashboard },
+  { to: "/app/cycle", label: "Ciclo de Estudos", icon: Repeat },
   { to: "/app/study", label: "Bora Estudar", icon: Clock },
-  { to: "/app/errors", label: "Caderno de Erros", icon: Layers },
   { to: "/app/reviews", label: "Revisões", icon: Brain },
+  { to: "/app/errors", label: "Caderno de Erros", icon: Layers },
   { to: "/app/edital", label: "Edital Verticalizado", icon: BookOpenCheck },
-  { to: "/app/cycle", label: "Ciclo de Estudos", icon: Layers },
-  { to: "/app/importance", label: "Raio-X do Edital", icon: TrendingUp },
+  { to: "/app/importance", label: "Raio-X do Edital", icon: FileSearch },
   { to: "/app/performance", label: "Desempenho", icon: TrendingUp },
   { to: "/app/settings", label: "Configurações", icon: Settings2 },
 ] as const;

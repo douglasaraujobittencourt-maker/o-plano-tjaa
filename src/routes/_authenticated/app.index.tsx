@@ -24,10 +24,10 @@ import { corBolinhaVisaoGeral } from "@/lib/caixa-subject-colors";
 
 // Paleta exclusiva dos dois quadros de progresso; não altera subjects.color.
 const PROGRESS_TRIBUNAL_LEGEND = {
-  goBasic: { label: "TJ Goiás — Conhecimentos Básicos", color: "#4B5320" },
+  goBasic: { label: "TJ Goiás — Conhecimentos Básicos", color: "#6B7A3A" },
   goSpecific: { label: "TJ Goiás — Conhecimentos Específicos", color: "#EAB308" },
   dfBasic: { label: "TJDFT — Conhecimentos Básicos", color: "#0284C7" },
-  dfSpecific: { label: "TJDFT — Conhecimentos Específicos", color: "#4C1D95" },
+  dfSpecific: { label: "TJDFT — Conhecimentos Específicos", color: "#C59B27" },
   writing: { label: "Redação (TJ Goiás e TJDFT)", color: "#D1D5DB" },
 } as const;
 type ProgressCategory = keyof typeof PROGRESS_TRIBUNAL_LEGEND;

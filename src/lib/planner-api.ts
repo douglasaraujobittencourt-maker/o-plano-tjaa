@@ -1,4 +1,5 @@
-import { tribunalGroups, tribunalCatalog, isTribunalSubject } from "@/lib/tribunal-catalog";
+import { tribunalGroups } from "@/lib/tribunal-catalog";
+import {selectPlannerSubjects,topicsForSubject,isWritingSubject,scopeOptions,type TribunalData,type TribunalTopic,type TopicScope,type ProgressCategory} from "@/lib/tribunal-subject-source";
 import { localDateStr, addDaysStr } from "./dates";
 import { supabase } from "@/integrations/supabase/external-client";
 import { idCanonicoAssunto, idsOriginaisDoAssunto } from "@/lib/edital-topic-equivalence";
@@ -13,6 +14,7 @@ export type Profile = {
   avatar_url?: string | null;
 };
 export type Subject = {
+  tribunal_data?:TribunalData|null;
   id: string; name: string; ord: number; pages: number; pages_read: number; total_questions: number; weight: number; color: string;
   study_status?: string; maintenance_weekly_questions_goal?: number; maintenance_questions_this_week?: number;
   planned_hours_per_week?: number; exam_questions?: number; min_questions?: number;
@@ -34,7 +36,8 @@ export async function markEditalTopicsStudied(subjectId: string, topicIds: numbe
   if (!ids.length) return;
   const {data:auth}=await supabase.auth.getUser();
   if(!auth.user)throw new Error("Sessão expirada.");
-  const topics=tribunalCatalog.assuntos.filter(a=>ids.includes(a.id));
+  const selected=(await getSubjects()).find(s=>s.id===subjectId);
+  const topics=topicsForSubject(selected,"bnb").filter(a=>ids.includes(a.id));
   if(topics.length!==ids.length)throw new Error("Assunto fora do catálogo de tribunais.");
   for(const a of topics){
     const {data:existing,error:readError}=await supabase.from("study_sessions").select("id").eq("user_id",auth.user.id).eq("edital_assunto_id",a.id).eq("task","Conclusão manual").limit(1);
@@ -53,7 +56,7 @@ export async function getProfile(): Promise<Profile | null> {
 export async function getSubjects(): Promise<Subject[]> {
   const { data,error } = await supabase.from("subjects").select("*").order("ord");
   if(error)throw error;
-  return ((data ?? []) as Subject[]).filter(s => isTribunalSubject(s.name));
+  return selectPlannerSubjects((data??[]) as Subject[],"bnb");
 }
 
 export async function getCycle() {
@@ -65,7 +68,7 @@ export async function getCycle() {
 }
 
 export async function getTodaySessions(date: string) {
-  const { data } = await supabase.from("study_sessions").select("*, subject:subjects(name,color)").eq("session_date", date).order("created_at", { ascending: false });
+  const { data } = await supabase.from("study_sessions").select("*, subject:subjects(*)").eq("session_date", date).order("created_at", { ascending: false });
   return data ?? [];
 }
 
@@ -167,17 +170,16 @@ export async function completeTribunalSubject(subjectId:string):Promise<string|n
  const uid=auth.user.id;
  const subjects=await getSubjects();
  const current=subjects.find(s=>s.id===subjectId);
- if(!current||current.name==="Redação (Prova Discursiva)")throw new Error("Selecione uma matéria objetiva.");
+ if(!current||isWritingSubject(current))throw new Error("Selecione uma matéria objetiva.");
  if(current.study_status==="finalized")return null;
  if(current.study_status!=="active")throw new Error("A matéria precisa estar no ciclo ativo.");
- const m=tribunalCatalog.materias.find(m=>m.titulo_central===current.name);
- const ids=tribunalCatalog.assuntos.filter(a=>a.materia_numero===m?.numero).map(a=>a.id);
+ const ids=topicsForSubject(current,"bnb").map(a=>a.id);
  if(!ids.length)throw new Error("Matéria sem assuntos.");
  const {data:slots,error:slotErr}=await supabase.from("cycle_slots").select("*").eq("user_id",uid).order("ord");
  if(slotErr)throw slotErr;
  const slot=(slots??[]).find(s=>s.subject_id===subjectId);
  if(!slot)throw new Error("Matéria sem posição no ciclo.");
- const next=subjects.find(s=>s.study_status==="pending"&&s.name!=="Redação (Prova Discursiva)");
+ const next=subjects.find(s=>s.study_status==="pending"&&!isWritingSubject(s));
  await markEditalTopicsStudied(subjectId,ids);
  const {error:currentErr}=await supabase.from("subjects").update({study_status:"finalized",planned_hours_per_week:0}).eq("id",subjectId).eq("user_id",uid);if(currentErr)throw currentErr;
  if(next){
@@ -505,14 +507,17 @@ export async function updateSubject(id: string, patch: {
     const {error:slotError}=await supabase.from("cycle_slots").update({hours_per_cycle:patch.planned_hours_per_week}).eq("subject_id",id);
     if(slotError)throw slotError;
   }
+  await announcePlannerProgress();
 }
 
-export async function createSubject(input: { name: string; color?: string; weight?: number; pages?: number; pages_read?: number; total_questions?: number; video_minutes_total?: number; video_minutes_watched?: number; planned_hours_per_week?:number }) {
+export async function createSubject(input: { name: string; color?: string; weight?: number; pages?: number; pages_read?: number; total_questions?: number; video_minutes_total?: number; video_minutes_watched?: number; planned_hours_per_week?:number; categories?:ProgressCategory[] }) {
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) throw new Error("no user");
   const { data: existing } = await supabase.from("subjects").select("ord").order("ord", { ascending: false }).limit(1);
   const nextOrd = (existing && existing[0]?.ord ? existing[0].ord : 0) + 1;
+  const definition=input.categories?.length?{number:await allocateTribunalId(),categories:input.categories,topics:[]}:undefined;
   const { data: created, error } = await (supabase.from("subjects") as any).insert({
+    ...(definition?{tribunal_data:definition}:{}),
     user_id: u.user.id,
     name: input.name,
     video_minutes_total: input.video_minutes_total || 0,
@@ -526,9 +531,41 @@ export async function createSubject(input: { name: string; color?: string; weigh
     ord: nextOrd,
   }).select("id").single();
   if (error) throw error;
+  await announcePlannerProgress();
   return created.id as string;
 }
 
+async function allocateTribunalId():Promise<number>{
+ const {data,error}=await (supabase as any).rpc("planner_allocate_tribunal_id");
+ if(error||!Number.isInteger(data))throw new Error("O cadastro editável precisa da migração do catálogo no Supabase.");
+ return data;
+}
+async function writeTribunalDefinition(subject:Subject,next:TribunalData){
+ if(!subject.tribunal_data)throw new Error("O cadastro editável precisa da migração do catálogo no Supabase.");
+ const {data,error}=await (supabase as any).rpc("planner_update_tribunal_data",{p_subject_id:subject.id,p_expected:subject.tribunal_data,p_next:next});
+ if(error)throw new Error(error.message);
+ if(!data)throw new Error("A matéria mudou em outra aba. Atualize e tente novamente.");
+ await announcePlannerProgress();
+}
+export async function changeTribunalTopic(subjectId:string,input:{id?:number;title?:string;scope?:TopicScope;remove?:boolean}){
+ const subject=(await getSubjects()).find(s=>s.id===subjectId);
+ if(!subject?.tribunal_data)throw new Error("A edição de assuntos precisa da migração do catálogo no Supabase.");
+ const current=subject.tribunal_data;let topics=current.topics;
+ if(input.id!==undefined&&!topics.some(t=>t.id===input.id))throw new Error("O assunto não está mais cadastrado.");
+ if(input.remove){if(input.id===undefined)throw new Error("Selecione o assunto.");topics=topics.filter(t=>t.id!==input.id);}
+ else{
+  const title=input.title?.trim();
+  if(!title||!input.scope||!scopeOptions(subject).includes(input.scope))throw new Error("Informe o assunto e um escopo válido.");
+  const topic:TribunalTopic={id:input.id??await allocateTribunalId(),title,scope:input.scope};
+  topics=input.id===undefined?[...topics,topic]:topics.map(t=>t.id===input.id?topic:t);
+ }
+ await writeTribunalDefinition(subject,{...current,topics});
+}
+export async function archiveTribunalSubject(subjectId:string){
+ const subject=(await getSubjects()).find(s=>s.id===subjectId);
+ if(!subject?.tribunal_data)throw new Error("A exclusão sincronizada precisa da migração do catálogo no Supabase.");
+ await writeTribunalDefinition(subject,{...subject.tribunal_data,archived:true});
+}
 export async function deleteSubject(id: string) {
   const { error } = await supabase.from("subjects").delete().eq("id", id);
   if (error) throw error;
@@ -617,6 +654,7 @@ export async function ensureUserBootstrap(forceInitialPlan=false):Promise<void>{
  if(subjectError)throw subjectError;
  const byName=new Map((existing??[]).map(s=>[s.name,s]));
  const first=forceInitialPlan||user.user_metadata?.tribunal_plan_version!==1;
+ if(!first)return;
  for(const [i,g] of tribunalGroups.entries()){
   const old=byName.get(g.name);
   const row={name:g.name,ord:i,planned_hours_per_week:g.hours,exam_questions:g.questions??0,weight:g.questions?Math.min(5,Math.max(1,Math.round((g.points??g.questions)/g.questions))):2,study_status:g.hours?"active":"pending"};

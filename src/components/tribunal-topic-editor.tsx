@@ -17,7 +17,7 @@ export function TribunalTopicEditor({subject,open,onOpenChange}:{subject:Subject
  const [error,setError]=useState("");
  const inputRef=useRef<HTMLInputElement>(null);
  const definition=subjectDefinition(subject);
- const canAdd=!!subject.tribunal_data;
+ const canAdd=!!definition;
  useEffect(()=>{setId(undefined);setTitle("");setError("");setScope(scopeOptions(subject)[0]??"Comum (Caixa + BB)");},[subject.id,open]);
  const reset=()=>{setId(undefined);setTitle("");setError("");setScope(options[0]??"Comum (Caixa + BB)");};
  const save=async(removeId?:number)=>{
@@ -55,7 +55,7 @@ export function TribunalTopicEditor({subject,open,onOpenChange}:{subject:Subject
  <select id="tribunal-topic-scope" className="w-full rounded-md border bg-background p-2 text-sm" value={scope} disabled={busy||(id===undefined&&!canAdd)} onChange={e=>setScope(e.target.value as TopicScope)}>{options.map(s=><option value={s} key={s}>{scopeLabel(s)}</option>)}</select>
  <div className="flex gap-2"><Button disabled={busy||!title.trim()||(id===undefined&&!canAdd)} onClick={()=>void save()}>{id===undefined?"Adicionar assunto":"Salvar assunto"}</Button>
  {id!==undefined&&<Button variant="outline" disabled={busy} onClick={reset}>Cancelar edição</Button>}</div>
- {id===undefined&&!canAdd&&<p className="text-xs text-muted-foreground">A inclusão de novos assuntos requer a estrutura de cadastro. Os botões Editar e Excluir acima estão disponíveis.</p>}
+ {id===undefined&&!canAdd&&<p className="text-xs text-muted-foreground">Não foi possível carregar a definição da matéria. Atualize a página e tente novamente.</p>}
  {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
  </div>
  </DialogContent></Dialog>;

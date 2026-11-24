@@ -1,5 +1,5 @@
 import { tribunalGroups } from "@/lib/tribunal-catalog";
-import {selectPlannerSubjects,topicsForSubject,isWritingSubject,scopeOptions,subjectDefinition,topicOverrideKey,topicOverridesForSubject,type TopicOverrides,type TopicOverride,type TribunalData,type TribunalTopic,type TopicScope,type ProgressCategory} from "@/lib/tribunal-subject-source";
+import {selectPlannerSubjects,topicsForSubject,isWritingSubject,scopeOptions,subjectDefinition,topicOverrideKey,topicOverridesForSubject,subjectDefinitionKey,legacyDefinitionForSubject,allocateLegacyCatalogId,isValidCategories,type TopicOverrides,type TopicOverride,type TribunalData,type TribunalTopic,type TopicScope,type ProgressCategory} from "@/lib/tribunal-subject-source";
 import { localDateStr, addDaysStr } from "./dates";
 import { supabase } from "@/integrations/supabase/external-client";
 import { idCanonicoAssunto, idsOriginaisDoAssunto } from "@/lib/edital-topic-equivalence";
@@ -15,6 +15,7 @@ export type Profile = {
 };
 export type Subject = {
   tribunal_data?:TribunalData|null;
+  legacy_tribunal_data?:TribunalData|null;
   topic_overrides?:TopicOverrides;
   id: string; name: string; ord: number; pages: number; pages_read: number; total_questions: number; weight: number; color: string;
   study_status?: string; maintenance_weekly_questions_goal?: number; maintenance_questions_this_week?: number;
@@ -62,7 +63,7 @@ export async function getSubjects(): Promise<Subject[]> {
   if(error)throw error;
   if(auth.error||!auth.data.user)throw new Error("Não foi possível carregar os assuntos da sua conta. Verifique a sessão e tente novamente.");
   const metadata=auth.data.user.user_metadata??{};
-  const rows=((data??[]) as Subject[]).filter(s=>metadata[subjectArchiveKey(s.id)]!==true).map(s=>({...s,topic_overrides:topicOverridesForSubject(metadata,s.id)}));
+  const rows=((data??[]) as Subject[]).filter(s=>metadata[subjectArchiveKey(s.id)]!==true).map(s=>({...s,legacy_tribunal_data:legacyDefinitionForSubject(metadata,s.id),topic_overrides:topicOverridesForSubject(metadata,s.id)}));
   return selectPlannerSubjects(rows,"bnb");
 }
 
@@ -520,34 +521,79 @@ export async function updateSubject(id: string, patch: {
 }
 
 export async function createSubject(input: { name: string; color?: string; weight?: number; pages?: number; pages_read?: number; total_questions?: number; video_minutes_total?: number; video_minutes_watched?: number; planned_hours_per_week?:number; categories?:ProgressCategory[] }) {
-  const { data: u } = await supabase.auth.getUser();
-  if (!u.user) throw new Error("no user");
-  const { data: existing } = await supabase.from("subjects").select("ord").order("ord", { ascending: false }).limit(1);
-  const nextOrd = (existing && existing[0]?.ord ? existing[0].ord : 0) + 1;
-  const definition=input.categories?.length?{number:await allocateTribunalId(),categories:input.categories,topics:[]}:undefined;
-  const { data: created, error } = await (supabase.from("subjects") as any).insert({
-    ...(definition?{tribunal_data:definition}:{}),
-    user_id: u.user.id,
-    name: input.name,
-    video_minutes_total: input.video_minutes_total || 0,
-    video_minutes_watched: input.video_minutes_watched || 0,
-    color: input.color || "#0284C7",
-    weight: input.weight || 2,
+  const {data:auth,error:authError}=await supabase.auth.getUser();
+  if(authError)throw authError;
+  if(!auth.user)throw new Error("Sua sessão expirou. Entre novamente.");
+  const name=input.name.trim();
+  if(!name)throw new Error("Informe o nome da matéria.");
+  if(input.categories&&!isValidCategories(input.categories))throw new Error("Selecione uma categoria válida.");
+  const {data:existing,error:readError}=await supabase.from("subjects").select("*").order("ord");
+  if(readError)throw readError;
+  const rows=(existing??[]) as Subject[];
+  const metadata=auth.user.user_metadata??{};
+  const normalized=(s:string)=>s.trim().toLocaleLowerCase("pt-BR");
+  if(rows.some(s=>normalized(s.name)===normalized(name)&&metadata[subjectArchiveKey(s.id)]!==true&&s.tribunal_data?.archived!==true))throw new Error("Esta matéria já está cadastrada.");
+  const nextOrd=Math.max(0,...rows.map(s=>s.ord??0))+1;
+  const id=crypto.randomUUID();
+  const base={
+    id,user_id:auth.user.id,name,
+    video_minutes_total:input.video_minutes_total??0,
+    video_minutes_watched:input.video_minutes_watched??0,
+    color:input.color||"#0284C7",
+    weight:input.weight??2,
     planned_hours_per_week:input.planned_hours_per_week??0,
-    pages: input.pages || 0,
-    pages_read: input.pages_read || 0,
-    total_questions: input.total_questions || 0,
-    ord: nextOrd,
-  }).select("id").single();
-  if (error) throw error;
+    pages:input.pages??0,pages_read:input.pages_read??0,
+    total_questions:input.total_questions??0,ord:nextOrd,
+  };
+  const insert=async(definition?:TribunalData)=>await (supabase.from("subjects") as any).insert({...base,...(definition?{tribunal_data:definition}:{})}).select("id").single();
+  if(!input.categories?.length){
+    const result=await insert();if(result.error)throw result.error;
+    if(result.data?.id!==id)throw new Error("O Supabase não confirmou a inclusão.");
+  }else{
+    const allocated=await allocateTribunalId();
+    const definition:TribunalData={number:allocated??allocateLegacyCatalogId(metadata,rows),categories:[...input.categories],topics:[]};
+    let needsLegacy=allocated===null;
+    if(!needsLegacy){
+      const result=await insert(definition);
+      if(result.error){if(!missingCatalogStructure(result.error))throw result.error;needsLegacy=true;}
+      else if(result.data?.id!==id)throw new Error("O Supabase não confirmou a inclusão.");
+    }
+    if(needsLegacy){
+      // Primeiro grava os metadados de uma nova UUID, ainda sem linha visível.
+      // Assim uma falha de Auth não cria matéria incompleta nas tabelas.
+      const key=subjectDefinitionKey(id);
+      const {data,error}=await supabase.auth.updateUser({data:{[key]:definition}});
+      if(error)throw error;
+      const confirmed=legacyDefinitionForSubject(data.user?.user_metadata??{},id);
+      if(!confirmed||confirmed.number!==definition.number||confirmed.categories.join("|")!==definition.categories.join("|"))throw new Error("O Supabase não confirmou a categoria da matéria.");
+      const result=await insert();
+      if(result.error||result.data?.id!==id){
+        // Não apaga linhas: se a resposta de rede for ambígua, verifica a UUID.
+        const check=await supabase.from("subjects").select("id").eq("id",id).maybeSingle();
+        if(check.error)throw new Error("Não foi possível confirmar a inclusão. Recarregue o planner antes de tentar novamente.");
+        if(check.data?.id!==id){
+          // Um marcador órfão é inofensivo; remove somente o que esta chamada criou.
+          await supabase.auth.updateUser({data:{[key]:null}});
+          if(result.error)throw result.error;
+          throw new Error("O Supabase não confirmou a inclusão da matéria.");
+        }
+      }
+    }
+  }
   await announcePlannerProgress();
-  return created.id as string;
+  return id;
 }
 
-async function allocateTribunalId():Promise<number>{
+async function allocateTribunalId():Promise<number|null>{
  const {data,error}=await (supabase as any).rpc("planner_allocate_tribunal_id");
- if(error||!Number.isInteger(data))throw new Error("O cadastro editável precisa da migração do catálogo no Supabase.");
+ if(error){if(missingCatalogStructure(error))return null;throw error;}
+ if(!Number.isInteger(data)||data<1000000||data>2147483647)throw new Error("O Supabase não retornou um identificador válido.");
  return data;
+}
+async function reserveLegacyId():Promise<number>{
+ const [{data,error},auth]=await Promise.all([supabase.from("subjects").select("*").order("ord"),supabase.auth.getUser()]);
+ if(error)throw error;if(auth.error)throw auth.error;if(!auth.data.user)throw new Error("Sua sessão expirou.");
+ return allocateLegacyCatalogId(auth.data.user.user_metadata??{},(data??[]) as Subject[]);
 }
 async function writeTribunalDefinition(subject:Subject,next:TribunalData){
  if(!subject.tribunal_data)throw new Error("O cadastro editável precisa da migração do catálogo no Supabase.");
@@ -576,7 +622,7 @@ async function persistTopicOverride(subject:Subject,id:number,patch:TopicOverrid
  const {data,error}=await supabase.auth.updateUser({data:{[key]:patch}});
  if(error)throw error;
  const saved=data.user?.user_metadata?.[key];
- if(!saved||("removed" in patch?saved.removed!==true:saved.title!==patch.title||saved.scope!==patch.scope))throw new Error("O banco não confirmou a gravação do assunto. Atualize a lista e tente novamente.");
+ if(!saved||("removed" in patch?saved.removed!==true:saved.title!==patch.title||saved.scope!==patch.scope||(patch.added===true&&saved.added!==true)))throw new Error("O banco não confirmou a gravação do assunto. Atualize a lista e tente novamente.");
  await announcePlannerProgress();
  return {...subject,topic_overrides:{...subject.topic_overrides,[String(id)]:patch}};
 }
@@ -591,19 +637,26 @@ export async function changeTribunalTopic(subjectId:string,input:{id?:number;tit
  if(!input.remove&&(!title||!input.scope||!scopeOptions(subject).includes(input.scope)))throw new Error("Informe o assunto e um escopo válido.");
 
  if(input.id===undefined){
-  // Adição mantém o mecanismo já existente de IDs únicos do catálogo migrado.
-  if(!subject.tribunal_data)throw new Error("Adicionar um assunto novo requer a estrutura de cadastro. Editar e excluir os assuntos existentes já está disponível.");
-  const topic:TribunalTopic={id:await allocateTribunalId(),title:title!,scope:input.scope!};
-  const next={...subject.tribunal_data,topics:[...subject.tribunal_data.topics,topic]};
-  await writeTribunalDefinition(subject,next);
-  return {...subject,tribunal_data:next};
+  if(subject.tribunal_data&&!subject.legacy_tribunal_data){
+   const allocated=await allocateTribunalId();
+   if(allocated!==null){
+    const topic:TribunalTopic={id:allocated,title:title!,scope:input.scope!};
+    const next={...subject.tribunal_data,topics:[...subject.tribunal_data.topics,topic]};
+    try{
+     await writeTribunalDefinition(subject,next);
+     return {...subject,tribunal_data:next};
+    }catch(error){if(!missingCatalogStructure(error))throw error;}
+   }
+  }
+  return persistTopicOverride(subject,await reserveLegacyId(),{title:title!,scope:input.scope!,added:true});
  }
 
  const id=input.id;
- const patch:TopicOverride=input.remove?{removed:true}:{title:title!,scope:input.scope!};
+ const oldPatch=subject.topic_overrides?.[String(id)];
+ const patch:TopicOverride=input.remove?{removed:true}:{title:title!,scope:input.scope!,...(oldPatch&&!("removed" in oldPatch)&&oldPatch.added?{added:true as const}:{})};
  // Catálogo já migrado: grava no próprio registro da matéria com controle de concorrência.
  // Uma personalização legada continua sendo editada na mesma chave, inclusive após a migração.
- if(subject.tribunal_data&&!subject.topic_overrides?.[String(id)]){
+ if(subject.tribunal_data&&!subject.legacy_tribunal_data&&!subject.topic_overrides?.[String(id)]){
   const raw=subject.tribunal_data;
   const topics=input.remove?raw.topics.filter(t=>t.id!==id):raw.topics.map(t=>t.id===id?{...t,title:title!,scope:input.scope!}:t);
   const next={...raw,topics};
@@ -616,6 +669,14 @@ export async function changeTribunalTopic(subjectId:string,input:{id?:number;tit
  }
  return persistTopicOverride(subject,id,patch);
 }
+export function createSubjectError(error:unknown):string{
+ const e=error as {code?:string;message?:string;status?:number};
+ if(e?.code==="42501"||e?.status===403||/row.level.security|permission denied/i.test(e?.message??""))return "O Supabase não permitiu cadastrar a matéria (permissão/RLS). Verifique o acesso da sua conta.";
+ if(e?.code==="23505")return "Já existe um registro com esse nome ou identificador. Verifique as matérias cadastradas antes de tentar novamente.";
+ if(e?.code==="23503")return "O banco recusou o cadastro por um vínculo de chave estrangeira.";
+ if(e?.status===401||e?.code==="session_not_found")return "Sua sessão expirou. Entre novamente.";
+ return e?.message||"Não foi possível cadastrar a matéria. Tente novamente.";
+}
 export function archiveSubjectError(error:unknown):string{
  const e=error as {code?:string;message?:string;status?:number};
  if(e?.code==="42501"||e?.status===403||/row.level.security|permission denied/i.test(e?.message??""))return "O Supabase não permitiu remover a matéria (permissão/RLS). Seu histórico foi preservado.";
@@ -626,7 +687,7 @@ export function archiveSubjectError(error:unknown):string{
 export async function archiveTribunalSubject(subjectId:string){
  const subject=(await getSubjects()).find(s=>s.id===subjectId);
  if(!subject)throw new Error("Matéria não encontrada ou já removida. Atualize a lista.");
- if(subject.tribunal_data){
+ if(subject.tribunal_data&&!subject.legacy_tribunal_data){
   try{
    await writeTribunalDefinition(subject,{...subject.tribunal_data,archived:true});
    return;

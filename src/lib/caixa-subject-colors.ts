@@ -57,6 +57,5 @@ export function corBolinhaVisaoGeral(
   nome: string | null | undefined,
   corCadastrada: string | null | undefined,
 ): string {
-  return (nome ? corBnbParaMateria(nome) ?? corCaixaParaMateria(nome) : null)
-    ?? corCadastrada ?? CORES_CAIXA.basica;
+  return corCadastrada ?? CORES_CAIXA.basica;
 }

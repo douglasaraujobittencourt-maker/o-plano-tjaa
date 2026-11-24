@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getEditalCatalog } from "@/lib/edital-catalog";
-import { loadBnbCatalog } from "@/lib/edital-bnb-data";
+import { isTribunalSubject } from "@/lib/tribunal-catalog";
 import { getEtapasAutomaticasEdital, etapaDoAssunto } from "@/lib/edital-auto-progress";
 
 export type EligibleErrorSubject = {
@@ -31,7 +31,7 @@ export async function getErrorNotebookAccess(): Promise<ErrorNotebookAccess> {
   if (subjectsError) throw subjectsError;
 
   const options: EligibleErrorSubject[] = (subjects ?? [])
-    .filter(s => s.study_status === "finalized")
+    .filter(s => isTribunalSubject(s.name) && s.study_status === "finalized")
     .map(s => ({ value: "subject:" + s.id, name: s.name, kind: "subject" as const, subjectId: s.id }));
 
   const catalog = await getEditalCatalog();
@@ -47,31 +47,9 @@ export async function getErrorNotebookAccess(): Promise<ErrorNotebookAccess> {
 
   for (const m of [...catalog.materias].sort((a,b) => a.numero-b.numero)) {
     const topics = catalog.assuntos.filter(a => a.materia_numero === m.numero);
-    if (!topics.length || !topics.every(a => etapaDoAssunto(etapas, a.id) === "Revisão 60D")) continue;
-    options.push({
-      value: "edital:" + m.numero,
-      name: m.titulo_central.replace(/^\d+\.\s*/, ""),
-      kind: "edital",
-      materiaNumero: m.numero,
-    });
-  }
-
-  // BNB: os IDs de matéria (101–103) não se confundem com BB/Caixa (1–10).
-  // A liberação individual continua exigindo todas as quatro revisões concluídas.
-  try {
-    const bnb = await loadBnbCatalog();
-    for (const materia of bnb.materias) {
-      const assuntos = bnb.assuntos.filter(a => a.materia_numero === materia.numero);
-      if (!assuntos.length || !assuntos.every(a => etapaDoAssunto(etapas, a.id) === "Revisão 60D")) continue;
-      options.push({
-        value: "edital:" + materia.numero,
-        name: "BNB: " + materia.titulo_central,
-        kind: "edital",
-        materiaNumero: materia.numero,
-      });
-    }
-  } catch {
-    // Falha isolada no catálogo BNB não impede as matérias concluídas do app.
+    if (!topics.length || !topics.every(a => ["Revisão 60D","Concluído"].includes(etapaDoAssunto(etapas,a.id)))) continue;
+    const subject=(subjects??[]).find(s=>s.name===m.titulo_central);
+    if(subject&&!options.some(o=>o.subjectId===subject.id))options.push({value:"subject:"+subject.id,name:subject.name,kind:"subject",subjectId:subject.id});
   }
 
   return {options, eligibleKeys: options.map(o => o.value)};

@@ -20,7 +20,7 @@ import { ProgressCarousel } from "@/components/progress-carousel";
 import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
 import { subjectBelongsToBank } from "@/lib/bank-exams";
 import { sumStudyMinutes, studyMinutesBy } from "@/lib/study-metrics";
-import { corBolinhaVisaoGeral, corCaixaParaMateria, corBnbParaMateria } from "@/lib/caixa-subject-colors";
+import { corBolinhaVisaoGeral } from "@/lib/caixa-subject-colors";
 
 export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({
@@ -117,31 +117,6 @@ function Dashboard() {
     (user.user_metadata?.display_name as string | undefined) ||
     user.email?.split("@")[0] || "Estudante";
   const { data: subjects = [] } = useQuery({ queryKey: ["subjects"], queryFn: getSubjects });
-  // A Visão geral consultava subjects.color, portanto mudar apenas a aparência
-  // das bolinhas não atualizava os valores persistidos. Normaliza uma vez
-  // por matéria da Caixa e do BNB, e atualiza as demais telas via React Query.
-  const colorsSyncing = useRef(false);
-  const colorsAttempted = useRef(new Set<string>());
-  useEffect(() => {
-    if (colorsSyncing.current || !subjects.length) return;
-    const pendentes = subjects.flatMap(subject => {
-      const cor = corBnbParaMateria(subject.name) ?? corCaixaParaMateria(subject.name);
-      if (!cor || subject.color?.toLowerCase() === cor.toLowerCase()) return [];
-      const chave = subject.id + ":" + cor;
-      if (colorsAttempted.current.has(chave)) return [];
-      return [{ subject, cor, chave }];
-    });
-    if (!pendentes.length) return;
-    colorsSyncing.current = true;
-    for (const p of pendentes) colorsAttempted.current.add(p.chave);
-    void Promise.all(pendentes.map(p => updateSubject(p.subject.id, { color: p.cor })))
-      .then(() => qc.invalidateQueries({ queryKey: ["subjects"] }))
-      .catch(error => {
-        console.error("Falha ao atualizar cores das matérias:", error);
-        toast.error("Não foi possível salvar as cores das matérias. Verifique sua conexão.");
-      })
-      .finally(() => { colorsSyncing.current = false; });
-  }, [subjects, qc]);
   const { data: dueReviews = [] } = useQuery({ queryKey: ["reviews-due", today], queryFn: () => getDueReviews(today) });
   const { data: weekSessions = [] } = useQuery({ queryKey: ["week", weekStart, today], queryFn: () => getSessionsBetween(weekStart, today) });
   const { data: monthSessions = [] } = useQuery({ queryKey: ["month", monthStart, today], queryFn: () => getSessionsBetween(monthStart, today) });
@@ -209,7 +184,7 @@ function Dashboard() {
   const bankSubjects = subjects.filter(s => subjectBelongsToBank(s.name, bank));
   // Horas semanais por matéria
   const weeklySubjectData = bankSubjects.map((s) => {
-    const planejado = s.weight ? s.weight * 2 : 4;
+    const planejado = s.planned_hours_per_week ?? 0;
     const feito = +(weekHoursBySubject[s.id] ?? 0).toFixed(1);
     const restante = Math.max(0, +(planejado - feito).toFixed(1));
     const sigla = getSubjectSigla(s.name);
@@ -295,7 +270,7 @@ function Dashboard() {
     if (isNaN(num) || num < 0) return;
 
     try {
-      await updateSubject(s.id, { weight: num / 2 });
+      await updateSubject(s.id, { planned_hours_per_week: num });
       await refreshAllData();
       toast.success(`Horas planejadas de ${s.name} atualizadas para ${num}h!`);
     } catch (e: any) {
@@ -311,7 +286,7 @@ function Dashboard() {
     setName(s.name);
     // A cor mostrada no editor deve ser a mesma da bolinha exibida na Visão geral.
     setColor(corBolinhaVisaoGeral(s.name, s.color));
-    setPlannedHours(String((s.weight ? s.weight * 2 : 4)));
+    setPlannedHours(String(s.planned_hours_per_week ?? 0));
     setPages(String(s.pages || 0));
     setPagesRead(String(s.pages_read || 0));
     setVideoTotalH(String(+((s.video_minutes_total || 0) / 60).toFixed(2)));
@@ -321,11 +296,11 @@ function Dashboard() {
   const saveSubjectChanges = async () => {
     if (!editingSubject) return;
     try {
-      const weightVal = (Number(plannedHours) || 0) / 2;
+      const planned = Math.max(0, Number(plannedHours) || 0);
       await updateSubject(editingSubject.id, {
         name: name.trim(),
         color,
-        weight: weightVal,
+        planned_hours_per_week: planned,
         ...(editMode !== "video" ? {
           pages: Number(pages) || 0,
           pages_read: Number(pagesRead) || 0,
@@ -343,29 +318,21 @@ function Dashboard() {
     }
   };
 
-  const handleDeleteSubject = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta matéria?")) return;
-    try {
-      await deleteSubject(id);
-      await refreshAllData();
-      toast.success("Matéria excluída");
-      setEditingSubject(null);
-    } catch (e: any) {
-      toast.error(e.message ?? "Erro ao excluir matéria");
-    }
-  };
+  const handleDeleteSubject = async (_id: string) => {toast.error("As matérias oficiais permanecem vinculadas ao edital. Altere a carga no ciclo.");};
 
   const handleCreateSubject = async () => {
+    if(!subjectBelongsToBank(name.trim(),"bnb")){toast.error("Inclua apenas matérias do catálogo oficial.");return;}
+    if(subjects.some(s=>s.name===name.trim())){toast.error("Esta matéria já está cadastrada.");return;}
     if (!name.trim()) {
       toast.error("Insira o nome da matéria");
       return;
     }
     try {
-      const weightVal = (Number(plannedHours) || 0) / 2;
+      const planned = Math.max(0, Number(plannedHours) || 0);
       await createSubject({
         name: name.trim(),
         color,
-        weight: weightVal,
+        planned_hours_per_week: planned,
         pages: Number(pages) || 0,
         pages_read: Number(pagesRead) || 0,
         video_minutes_total: Math.round((Number(videoTotalH.replace(",", ".")) || 0) * 60),
@@ -414,7 +381,7 @@ function Dashboard() {
           </h1>
           <p className="mt-1 flex min-w-0 items-center gap-2 text-sm font-medium text-muted-foreground">
             <img src={tribunaisHeaderEmblem} alt="Emblema dos Tribunais" className="h-[36px] w-auto max-w-20 shrink-0 object-contain" />
-            <span className="min-w-0 break-words">{profile?.exam_name || "Técnico de Seguridade Social"}</span>
+            <span className="min-w-0 break-words">{profile?.exam_name || "TJGO + TJDFT"}</span>
           </p>
         </div>
         <div className="hidden shrink-0 md:col-start-2 md:row-start-1 md:block xl:col-start-3">
@@ -443,6 +410,7 @@ function Dashboard() {
         </div>
       </div>
 
+      <Card className="p-4 flex flex-wrap gap-3 justify-between items-center"><div><h2 className="font-semibold">Plano TJGO + TJDFT</h2><p className="text-sm text-muted-foreground">Quatro matérias objetivas · discursiva semanal · fila por prioridade</p></div><Link to="/app/cycle" className="text-sm font-semibold text-primary">Abrir ciclo de estudos</Link></Card>
       {/* QUADRO DE DESTAQUE PRINCIPAL (CAMPOS SOLICITADOS) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* 1. Percentual Coberto do Edital */}
@@ -910,7 +878,7 @@ function Dashboard() {
           <div className="space-y-4 py-2">
             <div>
               <Label htmlFor="subName">Nome da Matéria</Label>
-              <Input id="subName" value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
+              <Input id="subName" value={name} readOnly className="mt-1" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

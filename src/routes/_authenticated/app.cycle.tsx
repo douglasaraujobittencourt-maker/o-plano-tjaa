@@ -9,7 +9,7 @@ import { Repeat, Layers, CheckCircle2, ArrowRightCircle, Plus, Minus, PenTool, P
 import { toast } from "sonner";
 import { localDateStr, addDaysStr } from "@/lib/dates";
 
-import {subjectMatchesExam,isWritingSubject} from "@/lib/tribunal-subject-source";
+import {isWritingSubject,subjectCategories,PROGRESS_TRIBUNAL_LEGEND,type ProgressCategory} from "@/lib/tribunal-subject-source";
 import {getSubjects} from "@/lib/planner-api";
 
 import {EditableCycleCard} from "@/components/editable-cycle-card";
@@ -32,6 +32,23 @@ export const Route = createFileRoute("/_authenticated/app/cycle")({
   }),
   component: CyclePage,
 });
+
+// A fila usa a classificação e os rótulos compartilhados, com os dois tons
+// de Goiás solicitados especificamente para esta seção.
+const QUEUE_COLORS: Partial<Record<ProgressCategory,string>>={
+  goBasic:"#6B7A3A",
+  goSpecific:"#EAB308",
+};
+const QUEUE_CATEGORIES: ProgressCategory[]=["goBasic","goSpecific","dfBasic","dfSpecific"];
+function QueueDot({category}:{category:ProgressCategory}){
+  const {label,color}=PROGRESS_TRIBUNAL_LEGEND[category];
+  return <span role="img" aria-label={label} title={label} className="w-2.5 h-2.5 rounded-full shrink-0 aspect-square ring-1 ring-border/50" style={{backgroundColor:QUEUE_COLORS[category]??color}} />;
+}
+function QueueLegend(){
+  return <div role="group" aria-label="Legenda das categorias da fila" className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+    {QUEUE_CATEGORIES.map(category=><span key={category} className="inline-flex items-center gap-1.5"><QueueDot category={category}/>{PROGRESS_TRIBUNAL_LEGEND[category].label}</span>)}
+  </div>;
+}
 
 function CyclePage() {
   
@@ -285,9 +302,10 @@ function CyclePage() {
           <h2 className="font-semibold text-lg">Fila Global e Sequência de Importância</h2>
         </div>
 
-        <Card className="p-5 card-elevated">
+        <Card className="p-5 card-elevated space-y-3">
+          <QueueLegend />
           <div className="space-y-2">
-            {subjects.map((s: any) => {
+            {subjects.filter(s=>!isWritingSubject(s)&&!/\b(redacao|discursiv\w*)\b/i.test(s.name.normalize("NFD").replace(/[\u0300-\u036f]/g,""))).map((s) => {
               let statusBadge = (
                 <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-muted/20 text-muted-foreground border-border/40 shrink-0">
                   Pendente
@@ -314,7 +332,7 @@ function CyclePage() {
               return (
                 <div key={s.id} className={`p-3 rounded-lg border text-sm flex items-center justify-between gap-4 ${itemBg}`}>
                   <div className="flex items-center gap-3">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+                    <span className="inline-flex items-center gap-1 shrink-0">{subjectCategories(s,"bnb").map(category=><QueueDot key={category} category={category}/>)}</span>
                     <span className="font-medium text-foreground leading-snug">{s.name}</span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">

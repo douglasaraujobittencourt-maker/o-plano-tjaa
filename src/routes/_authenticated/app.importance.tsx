@@ -19,22 +19,40 @@ const rowsGO:Row[]=[
  {key:"go-total",name:"Total da prova objetiva",questions:60,points:100,hours:11,subtotal:true},
  {key:"go-writing",name:writing.name,questions:dash,points:100,hours:writing.hours},
 ];
-// O edital do TJDFT (item 9.5.6) informa a quantidade por bloco,
-// exceto Língua Portuguesa. Não atribuir números individuais inexistentes.
-const dfSubject=(id:number,questions:number|string= dash,points:number|string=dash):Row=>{
+// Contagem temática do caderno oficial FGV, prova de 29/05/2022, Tipo 1 (branca).
+// https://conhecimento.fgv.br/sites/default/files/concursos/tecnico_judiciario_-_area_administrativanm-aa_tipo_1.pdf
+// 1–10 Português; 11–12 Ética; 13–20 Legislação institucional.
+// 21–24 Gestão de Pessoas; 25–28 AFO/MCASP; 29–32 Constitucional;
+// 33–36 Administrativo; 37–41 Civil; 42–48 Processual Civil;
+// 49–54 Penal (inclui abuso de autoridade); 55–60 Processual Penal.
+// Questões 21–28 agrupadas em 207 (Gestão de Pessoas e complementos de AFO),
+// conforme o conteúdo mais específico do planner, sem dupla contagem em Administração Pública.
+const dfSubject=(id:number,questions:number,category:ProgressCategory):Row=>{
  const g=tribunalGroups.find(g=>g.id===id)!;
- return {key:String(id),name:g.name,questions,points,hours:g.hours};
+ return {key:String(id),name:g.name,questions,points:questions,hours:g.hours,category};
 };
-const dfSpecificIds=[201,203,204,207,209,211,212,213];
+const dfSpecificRows:Row[]=[
+ dfSubject(201,0,"dfSpecific"),
+ dfSubject(203,4,"dfSpecific"),
+ dfSubject(204,4,"dfSpecific"),
+ dfSubject(207,8,"dfSpecific"),
+ dfSubject(209,7,"dfSpecific"),
+ dfSubject(211,6,"dfSpecific"),
+ dfSubject(212,6,"dfSpecific"),
+ dfSubject(213,5,"dfSpecific"),
+];
+const dfBasicRows:Row[]=[
+ dfSubject(202,10,"dfBasic"),
+ dfSubject(208,2,"dfBasic"),
+ dfSubject(210,8,"dfBasic"),
+];
 const rowsDF:Row[]=[
- ...dfSpecificIds.map(id=>dfSubject(id)),
+ ...dfSpecificRows,
  {key:"df-specific",name:"Subtotal — Conhecimentos Específicos",questions:40,points:40,hours:dash,subtotal:true,category:"dfSpecific"},
- dfSubject(202,10,10),
- dfSubject(208),
- dfSubject(210),
- {key:"df-other-basic",name:"Subtotal — Ética e legislação institucional",questions:10,points:10,hours:dash,subtotal:true,category:"dfBasic"},
+ ...dfBasicRows,
+ {key:"df-basic",name:"Subtotal — Conhecimentos Básicos",questions:20,points:20,hours:dash,subtotal:true,category:"dfBasic"},
  {key:"df-total",name:"Total da prova objetiva",questions:60,points:60,hours:11,subtotal:true},
- {key:"df-writing",name:writing.name,questions:"1 redação",points:30,hours:writing.hours},
+ {key:"df-writing",name:writing.name,questions:"1 redação",points:30,hours:writing.hours,category:"writing"},
 ];
 function ExamLegend({bank}:{bank:BankExam}){
  const categories:ProgressCategory[]=bank==="bb"?["goBasic","goSpecific","writing"]:["dfBasic","dfSpecific","writing"];
@@ -72,6 +90,6 @@ function ImportancePage(){
    <p className="text-sm text-muted-foreground">TJGO prioritário · TJDFT em seguida. Referências históricas, não previsão dos próximos editais.</p>
   </header>
   <ImportanceTable title="Grau de Importância — TJ Goiás" source="TJGO 02/2021 · Analista Judiciário — Apoio Judiciário e Administrativo · Quadro 3 e Anexo IV." bank="bb" rows={rowsGO} note="As quatro matérias iniciais somam 45 questões e 75/100 pontos. Discursiva: 100 pontos, mínimo 60. As horas representam a carga inicial do ciclo compartilhado, não uma meta adicional."/>
-  <ImportanceTable title="Grau de Importância — TJDFT" source="TJDFT 01/2022 · Técnico Judiciário — Área Administrativa, sem especialidade · itens 9.5.2, 9.5.6, 9.5.16 e 9.6.2; Anexo I." bank="caixa" rows={rowsDF} note="O edital não individualiza as 40 questões específicas nem as 10 de Ética e legislação institucional: — significa quantidade ou pontuação individual não informada. Administração Pública e Gestão de Pessoas/AFO são partes da disciplina oficial Noções de Administração de Recursos Humanos e Gestão Pública, separadas no planner. Mínimo objetivo: 20 acertos específicos e 30 no total. Redação: 30 pontos, mínimo 15. As horas iniciais são as mesmas do ciclo compartilhado; não devem ser somadas às horas da tabela TJGO."/>
+  <ImportanceTable title="Grau de Importância — TJDFT" source="TJDFT 01/2022 · Técnico Judiciário — Área Administrativa, sem especialidade · itens 9.5.2, 9.5.6, 9.5.16 e 9.6.2; Anexo I." bank="caixa" rows={rowsDF} note="Distribuição por matéria observada na prova aplicada em 29/05/2022 (FGV, caderno Tipo 1 — branca), por classificação temática conforme as disciplinas do planner; não é previsão do próximo edital. As questões 21–28 foram atribuídas a Gestão de Pessoas e complementos de AFO (4 de gestão e 4 de orçamento/MCASP), sem duplicá-las em Administração Pública. Zero indica ausência de questão atribuída separadamente nessa classificação. Cada questão objetiva vale 1 ponto. Mínimo objetivo: 20 acertos específicos e 30 no total. Redação: 30 pontos, mínimo 15. As horas iniciais continuam sendo as mesmas do ciclo compartilhado."/>
  </main>;
 }

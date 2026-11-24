@@ -12,9 +12,35 @@ export type ProgressCategory=keyof typeof PROGRESS_TRIBUNAL_LEGEND;
 export type TopicScope="Só BB"|"Só Caixa"|"Comum (Caixa + BB)";
 export type TribunalTopic={id:number;title:string;scope:TopicScope};
 export type TribunalData={number:number;categories:ProgressCategory[];topics:TribunalTopic[];archived?:boolean};
-export type TopicOverride={removed:true}|{title:string;scope:TopicScope};
+export type TopicOverride={removed:true}|{title:string;scope:TopicScope;added?:true};
 export type TopicOverrides=Record<string,TopicOverride>;
-export type SubjectRef={name:string;tribunal_data?:TribunalData|null;topic_overrides?:TopicOverrides};
+export type SubjectRef={name:string;tribunal_data?:TribunalData|null;legacy_tribunal_data?:TribunalData|null;topic_overrides?:TopicOverrides};
+export const subjectDefinitionKey=(id:string)=>"planner_tribunal_subject_v1:"+id;
+export function isValidCategories(value:unknown):value is ProgressCategory[]{
+ return Array.isArray(value)&&value.length>0&&value.every(c=>typeof c==="string"&&Object.prototype.hasOwnProperty.call(PROGRESS_TRIBUNAL_LEGEND,c))&&new Set(value).size===value.length;
+}
+export function legacyDefinitionForSubject(metadata:Record<string,unknown>,id:string):TribunalData|null{
+ const value=metadata[subjectDefinitionKey(id)] as TribunalData|undefined;
+ if(!value||!Number.isInteger(value.number)||value.number<1000000||value.number>2147483647||!isValidCategories(value.categories)||!Array.isArray(value.topics)||value.topics.length!==0)return null;
+ return value;
+}
+// Reserva a faixa alta dos inteiros PostgreSQL para IDs locais à conta.
+// Não reutiliza IDs do catálogo, dos registros arquivados ou dos assuntos removidos.
+export function allocateLegacyCatalogId(metadata:Record<string,unknown>,rows:readonly SubjectRef[]):number{
+ const used=new Set<number>();
+ for(const row of rows){for(const data of [row.tribunal_data,row.legacy_tribunal_data,officialDefinition(row.name)]){if(!data)continue;used.add(data.number);for(const topic of data.topics)used.add(topic.id);}}
+ for(const [key,value] of Object.entries(metadata)){
+  if(key.startsWith("planner_tribunal_subject_v1:")&&value&&typeof value==="object"){
+   const id=(value as {number?:number}).number;if(typeof id==="number")used.add(id);
+  }
+  if(key.startsWith("planner_tribunal_topic_v1:"))used.add(Number(key.slice(key.lastIndexOf(":")+1)));
+ }
+ for(let attempt=0;attempt<100;attempt++){
+  const id=1000000000+(crypto.getRandomValues(new Uint32Array(1))[0]%1000000000);
+  if(!used.has(id))return id;
+ }
+ throw new Error("Não foi possível reservar um identificador único. Tente novamente.");
+}
 const TOPIC_PREFIX="planner_tribunal_topic_v1:";
 export function topicOverrideKey(subjectId:string,topicId:number):string{return TOPIC_PREFIX+subjectId+":"+topicId;}
 export function topicOverridesForSubject(metadata:Record<string,unknown>,subjectId:string):TopicOverrides{
@@ -22,21 +48,27 @@ export function topicOverridesForSubject(metadata:Record<string,unknown>,subject
  const entries=Object.entries(metadata).filter(([key])=>key.startsWith(prefix)&&/^\d+$/.test(key.slice(prefix.length)));
  const valid=entries.flatMap(([key,value]):Array<readonly [string,TopicOverride]>=>{
   if(!value||typeof value!=="object")return [];
-  const v=value as {removed?:boolean;title?:string;scope?:TopicScope};
+  const v=value as {removed?:boolean;title?:string;scope?:TopicScope;added?:boolean};
   const id=key.slice(prefix.length);
   if(v.removed===true)return [[id,{removed:true}]];
-  if(typeof v.title==="string"&&v.title.trim()&&["Só BB","Só Caixa","Comum (Caixa + BB)"].includes(v.scope??""))return [[id,{title:v.title,scope:v.scope!}]];
+  if(typeof v.title==="string"&&v.title.trim()&&["Só BB","Só Caixa","Comum (Caixa + BB)"].includes(v.scope??""))return [[id,{title:v.title,scope:v.scope!,...(v.added===true?{added:true as const}:{})}]];
   return [];
  });
  return Object.fromEntries(valid);
 }
 export function applyTopicOverrides(data:TribunalData,overrides:TopicOverrides={}):TribunalData{
- return {...data,topics:data.topics.flatMap(t=>{
+ const topics=data.topics.flatMap(t=>{
   const patch=overrides[String(t.id)];
   if(!patch)return [t];
   if("removed" in patch)return [];
   return [{...t,title:patch.title,scope:patch.scope}];
- })};
+ });
+ const original=new Set(data.topics.map(t=>t.id));
+ for(const [key,patch] of Object.entries(overrides)){
+  const id=Number(key);
+  if(!("removed" in patch)&&patch.added===true&&Number.isInteger(id)&&id>0&&id<=2147483647&&!original.has(id))topics.push({id,title:patch.title,scope:patch.scope});
+ }
+ return {...data,topics};
 }
 export function officialDefinition(name:string):TribunalData|null{
  const m=tribunalCatalog.materias.find(m=>m.titulo_central===name);if(!m)return null;
@@ -48,7 +80,7 @@ export function officialDefinition(name:string):TribunalData|null{
  }
  return {number:m.numero,categories,topics:tribunalCatalog.assuntos.filter(a=>a.materia_numero===m.numero).map(a=>({id:a.id,title:a.topico_central,scope:a.escopo as TopicScope}))};
 }
-export function subjectDefinition(s:SubjectRef):TribunalData|null{const data=s.tribunal_data??officialDefinition(s.name);return data?applyTopicOverrides(data,s.topic_overrides):null;}
+export function subjectDefinition(s:SubjectRef):TribunalData|null{const data=s.tribunal_data?.archived?s.tribunal_data:s.legacy_tribunal_data??s.tribunal_data??officialDefinition(s.name);return data?applyTopicOverrides(data,s.topic_overrides):null;}
 export function scopeForCategories(categories:ProgressCategory[]):TopicScope{
  const go=categories.some(c=>c==="writing"||c.startsWith("go")),df=categories.some(c=>c==="writing"||c.startsWith("df"));
  return go&&df?"Comum (Caixa + BB)":go?"Só BB":"Só Caixa";

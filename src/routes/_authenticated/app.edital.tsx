@@ -24,7 +24,7 @@ function EditalPage(){
   const all=(catalog.data?.assuntos??[]).filter(a=>a.materia_numero===m.numero&&bankTopicAllowed(a,bank));
   const topics=all.filter(a=>!query||normalize(m.titulo_central+" "+a.topico_central).includes(query));
   return {m,all,topics};
- }).filter(g=>g.topics.length);
+ }).filter(g=>g.topics.length||(!query&&bankTopicAllowed(g.m,bank)&&!(catalog.data?.assuntos??[]).some(a=>a.materia_numero===g.m.numero)));
  return <main className="mx-auto max-w-5xl space-y-5 px-4 py-5 pb-24 sm:px-6 md:pb-8">
   <header><h1 className="flex items-center gap-2 text-2xl font-bold"><BookOpenCheck className="text-primary"/> Edital Verticalizado</h1>
   <p className="text-sm text-muted-foreground">TJGO 2021 · Analista — Apoio Judiciário e Administrativo (prioridade) | TJDFT 2022 · Técnico — Área Administrativa.</p>
@@ -39,8 +39,8 @@ function EditalPage(){
     return <AccordionItem key={m.numero} value={String(m.numero)} className="rounded-xl border bg-card px-4">
      <AccordionTrigger className="hover:no-underline"><div className="w-full text-left pr-4">
      <div className="flex flex-wrap justify-between gap-2"><span className="font-semibold">{m.titulo_central}</span><span className="text-xs text-muted-foreground">{count}/{all.length}</span></div>
-     <div className="text-xs text-muted-foreground">{m.ciclo==="Ciclo 1"?"Ciclo inicial":"Fila de espera"} · {scopeLabel(m.escopo)}</div><Progress className="mt-2 h-1" value={100*count/all.length}/></div></AccordionTrigger>
-     <AccordionContent>{m.numero===205&&<p className="text-xs text-muted-foreground py-2">A Constituição do Estado de Goiás, também exigida nesta disciplina, está vinculada uma única vez em Direito Constitucional.</p>}<ul className="divide-y divide-border/60">{topics.map(a=><li key={a.id} className="py-3 flex flex-wrap justify-between gap-2">
+     <div className="text-xs text-muted-foreground">{m.ciclo==="Ciclo 1"?"Ciclo inicial":"Fila de espera"} · {scopeLabel(m.escopo)}</div><Progress className="mt-2 h-1" value={all.length?100*count/all.length:0}/></div></AccordionTrigger>
+     <AccordionContent>{!all.length&&<p className="text-xs text-muted-foreground py-2">Nenhum assunto cadastrado. Adicione assuntos em Bora Estudar.</p>}{m.numero===205&&<p className="text-xs text-muted-foreground py-2">A Constituição do Estado de Goiás, também exigida nesta disciplina, está vinculada uma única vez em Direito Constitucional.</p>}<ul className="divide-y divide-border/60">{topics.map(a=><li key={a.id} className="py-3 flex flex-wrap justify-between gap-2">
       <div className="flex-1 min-w-[180px]"><p className="text-sm">{a.topico_central}</p><Badge variant="outline" className="mt-1">{scopeLabel(a.escopo)}</Badge></div>
       <span className="text-xs text-muted-foreground">{progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)}</span></li>)}</ul></AccordionContent>
     </AccordionItem>})}

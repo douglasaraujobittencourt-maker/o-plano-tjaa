@@ -20,7 +20,7 @@ import { ProgressCarousel } from "@/components/progress-carousel";
 import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
 import {selectPlannerSubjects,categoryChoices} from "@/lib/tribunal-subject-source";
 import {ProgressTribunalDots,ProgressTribunalLegend} from "@/components/tribunal-progress-colors";
-import {archiveTribunalSubject,archiveSubjectError,type Subject} from "@/lib/planner-api";
+import {archiveTribunalSubject,archiveSubjectError,createSubjectError,type Subject} from "@/lib/planner-api";
 import { sumStudyMinutes, studyMinutesBy } from "@/lib/study-metrics";
 import { corBolinhaVisaoGeral } from "@/lib/caixa-subject-colors";
 
@@ -256,6 +256,7 @@ function Dashboard() {
   const [videoWatchedH, setVideoWatchedH] = useState("0");
 
   const [isAddingSubject, setIsAddingSubject] = useState(false);
+  const [creatingSubject,setCreatingSubject]=useState(false);
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [goalHoursInput, setGoalHoursInput] = useState(String(goalH));
 
@@ -341,11 +342,13 @@ function Dashboard() {
   };
 
   const handleCreateSubject = async () => {
-    if(subjects.some(s=>s.name===name.trim())){toast.error("Esta matéria já está cadastrada.");return;}
+    if(creatingSubject)return;
+    if(subjects.some(s=>s.name.trim().toLocaleLowerCase("pt-BR")===name.trim().toLocaleLowerCase("pt-BR"))){toast.error("Esta matéria já está cadastrada.");return;}
     if (!name.trim()) {
       toast.error("Insira o nome da matéria");
       return;
     }
+    setCreatingSubject(true);
     try {
       const planned = Math.max(0, Number(plannedHours) || 0);
       const selected=categoryChoices.find(c=>c.value===newCategory);
@@ -365,8 +368,8 @@ function Dashboard() {
       setIsAddingSubject(false);
       setName("");
     } catch (e: any) {
-      toast.error(e.message ?? "Erro ao criar matéria");
-    }
+      toast.error(createSubjectError(e));
+    }finally{setCreatingSubject(false);}
   };
 
   const saveGoal = async () => {
@@ -902,7 +905,7 @@ function Dashboard() {
           <div className="space-y-4 py-2">
             <div>
               <Label htmlFor="subName">Nome da Matéria</Label>
-              <Input id="subName" value={name} onChange={e=>setName(e.target.value)} readOnly={!editingSubject?.tribunal_data} className="mt-1" />
+              <Input id="subName" value={name} onChange={e=>setName(e.target.value)} readOnly={!editingSubject?.tribunal_data&&!editingSubject?.legacy_tribunal_data} className="mt-1" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -954,7 +957,7 @@ function Dashboard() {
       </Dialog>
 
       {/* Modal Nova Matéria */}
-      <Dialog open={isAddingSubject} onOpenChange={setIsAddingSubject}>
+      <Dialog open={isAddingSubject} onOpenChange={open=>{if(!creatingSubject)setIsAddingSubject(open);}}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Adicionar Nova Matéria</DialogTitle>
@@ -1007,8 +1010,8 @@ function Dashboard() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddingSubject(false)}>Cancelar</Button>
-            <Button onClick={handleCreateSubject}>Criar Matéria</Button>
+            <Button variant="outline" disabled={creatingSubject} onClick={() => setIsAddingSubject(false)}>Cancelar</Button>
+            <Button disabled={creatingSubject} onClick={handleCreateSubject}>{creatingSubject?"Criando…":"Criar Matéria"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -20,12 +20,12 @@ export function topicOverrideKey(subjectId:string,topicId:number):string{return 
 export function topicOverridesForSubject(metadata:Record<string,unknown>,subjectId:string):TopicOverrides{
  const prefix=TOPIC_PREFIX+subjectId+":";
  const entries=Object.entries(metadata).filter(([key])=>key.startsWith(prefix)&&/^\d+$/.test(key.slice(prefix.length)));
- const valid=entries.flatMap(([key,value])=>{
+ const valid=entries.flatMap(([key,value]):Array<readonly [string,TopicOverride]>=>{
   if(!value||typeof value!=="object")return [];
   const v=value as {removed?:boolean;title?:string;scope?:TopicScope};
   const id=key.slice(prefix.length);
-  if(v.removed===true)return [[id,{removed:true}] as const];
-  if(typeof v.title==="string"&&v.title.trim()&&["Só BB","Só Caixa","Comum (Caixa + BB)"].includes(v.scope??""))return [[id,{title:v.title,scope:v.scope!}] as const];
+  if(v.removed===true)return [[id,{removed:true}]];
+  if(typeof v.title==="string"&&v.title.trim()&&["Só BB","Só Caixa","Comum (Caixa + BB)"].includes(v.scope??""))return [[id,{title:v.title,scope:v.scope!}]];
   return [];
  });
  return Object.fromEntries(valid);

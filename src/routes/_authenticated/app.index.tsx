@@ -18,9 +18,67 @@ import { toast } from "sonner";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { ProgressCarousel } from "@/components/progress-carousel";
 import { BankExamSelector, useBankExam } from "@/components/bank-exam-provider";
-import { subjectBelongsToBank } from "@/lib/bank-exams";
+import { subjectBelongsToBank, subjectMatterNumber, type BankExam } from "@/lib/bank-exams";
 import { sumStudyMinutes, studyMinutesBy } from "@/lib/study-metrics";
 import { corBolinhaVisaoGeral } from "@/lib/caixa-subject-colors";
+
+// Paleta exclusiva dos dois quadros de progresso; não altera subjects.color.
+const PROGRESS_TRIBUNAL_LEGEND = {
+  goBasic: { label: "TJ Goiás — Conhecimentos Básicos", color: "#4B5320" },
+  goSpecific: { label: "TJ Goiás — Conhecimentos Específicos", color: "#EAB308" },
+  dfBasic: { label: "TJDFT — Conhecimentos Básicos", color: "#0284C7" },
+  dfSpecific: { label: "TJDFT — Conhecimentos Específicos", color: "#4C1D95" },
+  writing: { label: "Redação (TJ Goiás e TJDFT)", color: "#D1D5DB" },
+} as const;
+type ProgressCategory = keyof typeof PROGRESS_TRIBUNAL_LEGEND;
+
+// Classificação por tribunal conforme os blocos dos editais históricos.
+const GO_BASIC_SUBJECTS = new Set([202, 205, 206]);
+const DF_BASIC_SUBJECTS = new Set([202, 208, 210]);
+
+function progressCategories(name: string, bank: BankExam): ProgressCategory[] {
+  const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/\b(redacao|discursiva)\b/.test(normalized)) return ["writing"];
+  const categories: ProgressCategory[] = [];
+  const go = bank !== "caixa" ? subjectMatterNumber(name, "bb") : null;
+  const df = bank !== "bb" ? subjectMatterNumber(name, "caixa") : null;
+  if (go !== null) categories.push(GO_BASIC_SUBJECTS.has(go) ? "goBasic" : "goSpecific");
+  if (df !== null) categories.push(DF_BASIC_SUBJECTS.has(df) ? "dfBasic" : "dfSpecific");
+  return categories;
+}
+
+function ProgressTribunalDot({ category }: { category: ProgressCategory }) {
+  const { label, color } = PROGRESS_TRIBUNAL_LEGEND[category];
+  return (
+    <span role="img" aria-label={label} title={label}
+      className="w-2.5 h-2.5 rounded-full shrink-0 aspect-square ring-1 ring-border/50"
+      style={{ backgroundColor: color }} />
+  );
+}
+
+function ProgressTribunalDots({ name, bank }: { name: string; bank: BankExam }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1">
+      {progressCategories(name, bank).map(category => (
+        <ProgressTribunalDot key={category} category={category} />
+      ))}
+    </span>
+  );
+}
+
+function ProgressTribunalLegend() {
+  return (
+    <div role="group" aria-label="Legenda das categorias de matérias"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+      {(Object.keys(PROGRESS_TRIBUNAL_LEGEND) as ProgressCategory[]).map(category => (
+        <span key={category} className="inline-flex items-center gap-1.5">
+          <ProgressTribunalDot category={category} />
+          <span>{PROGRESS_TRIBUNAL_LEGEND[category].label}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({
@@ -639,6 +697,7 @@ function Dashboard() {
         </div>
 
         <BankExamSelector />
+        <ProgressTribunalLegend />
         <div className="overflow-x-auto" data-progress-table>
           <table className="w-full text-sm text-left border-collapse">
             <thead>
@@ -659,7 +718,7 @@ function Dashboard() {
                 <tr key={row.id} className="hover:bg-muted/30 transition">
                   <td className="py-2.5 px-3 font-semibold">
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0 aspect-square" style={{ background: corBolinhaVisaoGeral(row.name, row.color) }} />
+                      <ProgressTribunalDots name={row.name} bank={bank} />
                       <span>{row.name}</span>
                     </div>
                   </td>
@@ -711,6 +770,7 @@ function Dashboard() {
         </div>
         <Progress value={totalVideoPct} className="h-2" />
         <BankExamSelector />
+        <ProgressTribunalLegend />
         <div className="overflow-x-auto" data-progress-table>
           <table className="w-full text-sm text-left border-collapse">
             <thead>
@@ -728,7 +788,7 @@ function Dashboard() {
                 <tr key={row.id} className="hover:bg-muted/30 transition">
                   <td className="py-2.5 px-3 font-semibold">
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0 aspect-square" style={{ background: corBolinhaVisaoGeral(row.name, row.color) }} />
+                      <ProgressTribunalDots name={row.name} bank={bank} />
                       <span>{row.name}</span>
                     </div>
                   </td>

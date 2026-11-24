@@ -318,17 +318,7 @@ function Dashboard() {
     }
   };
 
-  const handleDeleteSubject = async (id: string) => {
-    toast.error("As matérias oficiais permanecem vinculadas ao edital. Altere a carga no ciclo."); return;
-    try {
-      await deleteSubject(id);
-      await refreshAllData();
-      toast.success("Matéria excluída");
-      setEditingSubject(null);
-    } catch (e: any) {
-      toast.error(e.message ?? "Erro ao excluir matéria");
-    }
-  };
+  const handleDeleteSubject = async (_id: string) => {toast.error("As matérias oficiais permanecem vinculadas ao edital. Altere a carga no ciclo.");};
 
   const handleCreateSubject = async () => {
     if(!subjectBelongsToBank(name.trim(),"bnb")){toast.error("Inclua apenas matérias do catálogo oficial.");return;}

@@ -137,14 +137,14 @@ function StudyPage() {
       const chosen=subjects.find(s=>s.id===materiaId);
       if(kind==="redacao"&&chosen?.name!=="Redação (Prova Discursiva)")throw new Error("Selecione a matéria de Discursiva.");
       if(chosen?.name==="Redação (Prova Discursiva)"&&kind!=="redacao")throw new Error("Use o tipo Discursiva.");
-      if(isSubjectFinished&&chosen?.study_status!=="active")throw new Error("Somente uma matéria ativa pode avançar na fila.");
+      if(isSubjectFinished&&(chosen?.study_status!=="active"||chosen?.name==="Redação (Prova Discursiva)"))throw new Error("Somente uma matéria ativa pode avançar na fila.");
       await logSession({
         subject_id: materiaId,
         edital_assunto_id: assuntoSelecionado ? idCanonicoAssunto(assuntoSelecionado.id) : null,
         topic: assuntoSelecionado?.topico_central,
         lesson: assuntoSelecionado?.topico_central ?? null,
         kind: kind === "video" ? "leitura" : kind,
-        task: kind === "redacao" ? "Discursiva" : kind === "video" ? "Videoaula" : kind === "leitura" ? "Leitura de PDF" : "Questões",
+        task: kind === "redacao" ? "Redação" : kind === "video" ? "Videoaula" : kind === "leitura" ? "Leitura de PDF" : "Questões",
         minutes,
         pages_read: pages,
         questions_done: q,
@@ -183,7 +183,7 @@ function StudyPage() {
       await updateSession(editSession.id, {
         subject_id: editSession.subject_id || null,
         kind: editSession.kind === "video" ? "leitura" : editSession.kind,
-        task: editSession.kind === "redacao" ? "Discursiva" : editSession.kind === "video" ? "Videoaula" : editSession.kind === "leitura" ? "Leitura de PDF" : "Questões",
+        task: editSession.kind === "redacao" ? "Redação" : editSession.kind === "video" ? "Videoaula" : editSession.kind === "leitura" ? "Leitura de PDF" : "Questões",
         minutes: Math.max(1, editSession.minutes),
         pages_read: editSession.pages_read,
         questions_done: editSession.questions_done,

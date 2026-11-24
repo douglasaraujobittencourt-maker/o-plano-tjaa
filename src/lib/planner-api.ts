@@ -556,6 +556,7 @@ export async function resetAllStudyData() {
   fail("matérias", (await supabase.from("subjects").update({
     pages: 0,
     pages_read: 0,
+    video_minutes_watched: 0,
     total_questions: 0,
     exam_questions: 0,
     min_questions: 0,
@@ -570,9 +571,10 @@ export async function resetAllStudyData() {
     xp: 0,
     streak_days: 0,
     last_study_date: null,
-    weekly_goal_hours: 14,
+    weekly_goal_hours: 12,
     weekly_goal_questions: 100,
   }).eq("id", uid)).error);
+  await ensureUserBootstrap(true);
 }
 
 
@@ -605,7 +607,7 @@ export async function updateProfile(patch: { weekly_goal_hours?: number; weekly_
 // Não depende de trigger no banco.
 // ---------------------------------------------------------------------------
 const PLAN_NAME="TJGO · Analista Administrativo | TJDFT · Técnico Administrativo";
-export async function ensureUserBootstrap():Promise<void>{
+export async function ensureUserBootstrap(forceInitialPlan=false):Promise<void>{
  const {data:auth}=await supabase.auth.getUser();const user=auth?.user;if(!user)return;
  const uid=user.id;
  const {data:prof,error:profileError}=await supabase.from("profiles").select("id,exam_name").eq("id",uid).maybeSingle();
@@ -614,7 +616,7 @@ export async function ensureUserBootstrap():Promise<void>{
  const {data:existing,error:subjectError}=await supabase.from("subjects").select("id,name,ord,study_status").eq("user_id",uid).order("ord");
  if(subjectError)throw subjectError;
  const byName=new Map((existing??[]).map(s=>[s.name,s]));
- const first=user.user_metadata?.tribunal_plan_version!==1;
+ const first=forceInitialPlan||user.user_metadata?.tribunal_plan_version!==1;
  for(const [i,g] of tribunalGroups.entries()){
   const old=byName.get(g.name);
   const row={name:g.name,ord:i,planned_hours_per_week:g.hours,exam_questions:g.questions??0,weight:g.questions?Math.min(5,Math.max(1,Math.round((g.points??g.questions)/g.questions))):2,study_status:g.hours?"active":"pending"};

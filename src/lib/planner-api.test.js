@@ -1,52 +1,37 @@
-import { beforeEach, expect, mock, test } from "bun:test";
-const rows = [
-  { id: "atendimento", name: "Atendimento bancário", color: "#15803D", ord: 0 },
-  { id: "portugues", name: "Português", color: "#0284C7", ord: 1 }
-];
-let stored = rows.map((row) => ({ ...row }));
-let writeError = null;
-mock.module("@/integrations/supabase/external-client", () => ({
-  supabase: {
-    auth: { getUser: async () => ({ data: { user: { id: "owner" } } }) },
-    from: (table) => ({
-      select: () => ({
-        order: async () => ({ data: stored.map((row) => ({ ...row })), error: null }),
-        limit: async () => ({ data: stored.map((row) => ({ id: row.id })), error: null }),
-        eq: () => ({ maybeSingle: async () => ({ data: { id: "owner" }, error: null }) })
-      }),
-      update: (patch) => ({
-        eq: async (_column, id) => {
-          expect(table).toBe("subjects");
-          if (!writeError)
-            stored = stored.map((row) => row.id === id ? { ...row, ...patch } : row);
-          return { error: writeError };
-        }
-      })
-    })
-  }
-}));
-const { updateSubject, getSubjects, ensureUserBootstrap } = await import("./planner-api");
-beforeEach(() => {
-  stored = rows.map((row) => ({ ...row }));
-  writeError = null;
+import {beforeEach,expect,mock,test} from "bun:test";
+import {tribunalGroups} from "./tribunal-catalog";
+const rows=tribunalGroups.map((g,i)=>({id:String(g.id),name:g.name,color:"#0284C7",ord:i,study_status:g.hours?"active":"pending"}));
+let stored=rows.map(row=>({...row}));
+let writeError=null;
+let bootstrapWrites=0;
+mock.module("@/integrations/supabase/external-client",()=>({supabase:{
+ auth:{getUser:async()=>({data:{user:{id:"owner",user_metadata:{tribunal_plan_version:1}}}})},
+ from:table=>({
+  select:()=>({
+   order:async()=>({data:stored.map(row=>({...row})),error:null}),
+   eq:()=>({maybeSingle:async()=>({data:{id:"owner",exam_name:"TJGO + TJDFT"},error:null}),order:async()=>({data:stored.map(row=>({...row})),error:null})}),
+  }),
+  insert:()=>{bootstrapWrites++;throw Error("Bootstrap não deve inserir novamente");},
+  update:patch=>({eq:async(_column,id)=>{if(table!=="subjects")bootstrapWrites++;if(!writeError)stored=stored.map(row=>row.id===id?{...row,...patch}:row);return {error:writeError};}}),
+ })
+}}));
+const {updateSubject,getSubjects,ensureUserBootstrap}=await import("./planner-api");
+beforeEach(()=>{stored=rows.map(row=>({...row}));writeError=null;bootstrapWrites=0;});
+test("Preserva a cor escolhida após reabrir o planner de tribunais",async()=>{
+ await updateSubject("201",{color:"#F97316"});
+ await ensureUserBootstrap();
+ const list=await getSubjects();
+ expect(list.find(row=>row.id==="201")?.color).toBe("#F97316");
+ expect(list.length).toBe(14);expect(bootstrapWrites).toBe(0);
 });
-test("Atendimento bancário saves orange and reads it unchanged after reopening", async () => {
-  await updateSubject("atendimento", { color: "#F97316" });
-  await ensureUserBootstrap();
-  const reloaded = await getSubjects();
-  expect(stored.find((row) => row.id === "atendimento")?.color).toBe("#F97316");
-  expect(reloaded.find((row) => row.id === "atendimento")?.color).toBe("#F97316");
-  expect(reloaded.find((row) => row.id === "portugues")?.color).toBe("#0284C7");
+test("Não restaura cores automáticas nem altera a fila já inicializada",async()=>{
+ await updateSubject("202",{color:"#1D4ED8"});
+ await ensureUserBootstrap();
+ expect((await getSubjects()).find(row=>row.id==="202")?.color).toBe("#1D4ED8");
+ expect(bootstrapWrites).toBe(0);
 });
-test("Português preserves the exact chosen blue rather than recalculating its shade", async () => {
-  await updateSubject("portugues", { color: "#1D4ED8" });
-  await ensureUserBootstrap();
-  const reloaded = await getSubjects();
-  expect(reloaded.find((row) => row.id === "portugues")?.color).toBe("#1D4ED8");
-  expect(reloaded.map((row) => row.name)).toEqual(["Atendimento bancário", "Português"]);
-});
-test("a rejected database update surfaces an error instead of claiming the color was saved", async () => {
-  writeError = { message: "write rejected" };
-  await expect(updateSubject("atendimento", { color: "#F97316" })).rejects.toEqual(writeError);
-  expect(stored.find((row) => row.id === "atendimento")?.color).toBe("#15803D");
+test("Erro de gravação é propagado",async()=>{
+ writeError={message:"write rejected"};
+ await expect(updateSubject("201",{color:"#F97316"})).rejects.toEqual(writeError);
+ expect(stored.find(row=>row.id==="201")?.color).toBe("#0284C7");
 });

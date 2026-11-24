@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_authenticated")({
     try {
       const { ensureUserBootstrap } = await import("@/lib/planner-api");
       await ensureUserBootstrap();
-    } catch { /* ignore */ }
+    } catch (error) { console.error("Não foi possível inicializar o ciclo de tribunais:",error); }
     return { user: data.user };
   },
   component: AppShell,

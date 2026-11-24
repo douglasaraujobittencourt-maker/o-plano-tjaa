@@ -95,7 +95,7 @@ function CyclePage() {
 
   const redactionSubject = subjects.find((s: any) => s.name === "Redação (Prova Discursiva)");
   const isRedactionActive = redactionSubject?.study_status === "active";
-  const essaysWrittenThisWeek = weekSessions.length;
+  const essaysWrittenThisWeek = weekSessions.filter(s=>s.minutes>0).length;
 
   // Finalize subject function
   const handleFinalize=async(subjectId:string,name:string)=>{
@@ -122,11 +122,12 @@ function CyclePage() {
     if(newStatus==="finalized"&&s.study_status==="active")return handleFinalize(s.id,s.name);
     toast.error("O ciclo mantém quatro matérias objetivas. Conclua uma matéria ativa para liberar a próxima.");
   };
-  const slotNames=new Map(cycle.map(s=>[s.ord,s.subject?.name??""]));
+  const validSlots=cycle.filter(s=>s.subject&&subjectBelongsToBank(s.subject.name,"bnb"));
+  const slotNames=new Map(validSlots.map(s=>[s.ord,s.subject?.name??""]));
   const currentSessions=tribunalStudyPlan.sessions.map(session=>session.map(slot=>{
     const g=tribunalGroups.find(g=>g.name===slot.subject);
     const ord=g?.id===214?4:(g?.id??201)-201;
-    const current=cycle.find(s=>s.ord===ord);
+    const current=validSlots.find(s=>s.ord===ord);
     const initial=tribunalGroups.find(g=>g.id===(ord===4?214:201+ord));
     return {subject:slotNames.get(ord)||"Revisão / vaga",minutes:current&&initial?.hours?Math.round(slot.minutes*current.hours_per_cycle/initial.hours):slot.minutes};
   }));

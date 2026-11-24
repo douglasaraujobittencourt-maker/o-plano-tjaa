@@ -31,14 +31,14 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const NAV = [
-  { to: "/app", label: "1 - Visão geral", icon: LayoutDashboard },
-  { to: "/app/study", label: "2 - Bora Estudar", icon: Clock },
-  { to: "/app/errors", label: "3 - Caderno de Erros", icon: Layers },
-  { to: "/app/reviews", label: "4 - Revisões", icon: Brain },
-  { to: "/app/edital", label: "5 - Edital Verticalizado", icon: BookOpenCheck },
+  { to: "/app", label: "Visão geral", icon: LayoutDashboard },
+  { to: "/app/study", label: "Bora Estudar", icon: Clock },
+  { to: "/app/errors", label: "Caderno de Erros", icon: Layers },
+  { to: "/app/reviews", label: "Revisões", icon: Brain },
+  { to: "/app/edital", label: "Edital Verticalizado", icon: BookOpenCheck },
   { to: "/app/cycle", label: "Ciclo de Estudos", icon: Layers },
   { to: "/app/importance", label: "Raio-X do Edital", icon: TrendingUp },
-  { to: "/app/performance", label: "6 - Desempenho", icon: TrendingUp },
+  { to: "/app/performance", label: "Desempenho", icon: TrendingUp },
   { to: "/app/settings", label: "Configurações", icon: Settings2 },
 ] as const;
 

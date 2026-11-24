@@ -1,6 +1,6 @@
 import { localDateStr, addDaysStr } from "@/lib/dates";
 import { createFileRoute } from "@tanstack/react-router";
-import { ExamLogoImage } from "@/components/exam-logo-image";
+import tribunaisHeaderEmblem from "@/assets/tribunais-header-emblem.svg";
 import { ProfileMenu } from "@/components/profile-menu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProfile, getSubjects, getDueReviews, completeReview, deleteReview, clearAllPendingReviews, getReviewLayerLabel, getSessionsBetween, getAllSessions, updateSubject, createSubject, deleteSubject, updateProfile, getTodaySessions } from "@/lib/planner-api";
@@ -413,7 +413,7 @@ function Dashboard() {
             Olá, {greetingName} 👋
           </h1>
           <p className="mt-1 flex min-w-0 items-center gap-2 text-sm font-medium text-muted-foreground">
-            <ExamLogoImage src={profile?.exam_logo_url} secondarySrc={profile?.exam_logo_bb_url} name="Caixa" secondaryName="Banco do Brasil" className="h-[36px] w-auto max-w-20 shrink-0 object-contain" />
+            <img src={tribunaisHeaderEmblem} alt="Emblema dos Tribunais" className="h-[36px] w-auto max-w-20 shrink-0 object-contain" />
             <span className="min-w-0 break-words">{profile?.exam_name || "Técnico de Seguridade Social"}</span>
           </p>
         </div>

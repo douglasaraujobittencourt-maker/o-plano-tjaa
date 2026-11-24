@@ -63,11 +63,10 @@ function AuthPage() {
 
     setLoading(true);
     try {
-      const { data: buyer, error: buyerError } = await (supabase as any)
-        .from("allowed_buyers")
-        .select("email")
-        .ilike("email", normalizedEmail)
-        .maybeSingle();
+      const { data: buyer, error: buyerError } = await supabase.rpc(
+        "is_allowed_buyer" as never,
+        { p_email: normalizedEmail } as never,
+      );
 
       if (buyerError) throw buyerError;
 

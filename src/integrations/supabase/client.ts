@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
 // Projeto Supabase "O Plano" conectado a este app.
-const SUPABASE_URL = "[https://uridzsdeonftfjqrpvse.supabase.co](https://uridzsdeonftfjqrpvse.supabase.co)";
+const SUPABASE_URL = "https://uridzsdeonftfjqrpvse.supabase.co";
 const SUPABASE_ANON_KEY =
   "sb_publishable_lYBcVSbuInNNr7RjBBLpAw_ju5KVWaW";
 

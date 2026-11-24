@@ -417,7 +417,7 @@ function Dashboard() {
         </div>
       </div>
 
-      <Card className="p-4 flex flex-wrap gap-3 justify-between items-center"><div><h2 className="font-semibold">Plano TJGO + TJDFT</h2><p className="text-sm text-muted-foreground">Quatro matérias objetivas · discursiva semanal · fila por prioridade</p></div><Link to="/app/cycle" className="text-sm font-semibold text-primary">Abrir ciclo de estudos</Link></Card>
+      <Card className="p-4 flex flex-wrap gap-3 justify-between items-center"><div><h2 className="flex items-center gap-3 mb-2" aria-label="Plano TJGO + TJDFT"><img src="/logos/tjgo.webp" alt="TJ Goiás" width={68} height={68} className="h-[68px] w-[68px] shrink-0 rounded-full object-cover ring-1 ring-border/50" /><img src="/logos/tjdft.webp" alt="TJDFT" width={68} height={68} className="h-[68px] w-[68px] shrink-0 rounded-full object-cover ring-1 ring-border/50" /></h2><p className="text-sm text-muted-foreground">Quatro matérias objetivas · discursiva semanal · fila por prioridade</p></div><Link to="/app/cycle" className="text-sm font-semibold text-primary">Abrir ciclo de estudos</Link></Card>
       {/* QUADRO DE DESTAQUE PRINCIPAL (CAMPOS SOLICITADOS) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* 1. Percentual Coberto do Edital */}

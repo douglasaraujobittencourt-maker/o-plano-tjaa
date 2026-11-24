@@ -39,3 +39,36 @@ test("metadados legados são aplicados mesmo após a migração e preservam IDs"
  expect(law.tribunal_data.topics.length).toBe(result.length+1);
  expect(catalogFromSubjects([edited]).assuntos).toEqual(result);
 });
+
+import {performanceMatches,performanceTribunalLabel,visiblePerformanceRows} from "./individual-performance";
+import {tribunalGroups} from "./tribunal-catalog";
+test("desempenho inclui todas as 14 matérias e não duplica as compartilhadas",()=>{
+ const rows=tribunalGroups.map(g=>({id:String(g.id),name:g.name,hours:0,minutes:0,qDone:0,accuracy:0}));
+ const all=visiblePerformanceRows(rows,"all","name"),go=visiblePerformanceRows(rows,"go","name"),df=visiblePerformanceRows(rows,"df","name");
+ expect(all).toHaveLength(14);
+ expect(new Set([...go,...df].map(row=>row.id)).size).toBe(14);
+ expect(go.filter(row=>row.id==="202")).toHaveLength(1);
+ expect(df.filter(row=>row.id==="202")).toHaveLength(1);
+ expect(performanceTribunalLabel(rows.find(row=>row.id==="202"))).toBe("TJ Goiás + TJDFT");
+ expect(visiblePerformanceRows(rows,"writing","name").map(row=>row.id)).toEqual(["214"]);
+ expect(performanceMatches(rows.find(row=>row.id==="202"),"basic")).toBe(true);
+ expect(performanceMatches(rows.find(row=>row.id==="203"),"specific")).toBe(true);
+ expect(performanceMatches(rows.find(row=>row.id==="214"),"specific")).toBe(false);
+});
+test("ordena por horas reais, nome e acerto sem confundir ausência de questões com zero por cento",()=>{
+ const rows=[
+ {id:"1",name:"Zeta",hours:1,minutes:59,qDone:0,accuracy:0},
+ {id:"2",name:"Beta",hours:1,minutes:61,qDone:3,accuracy:0},
+ {id:"3",name:"Alfa",hours:0,minutes:0,qDone:4,accuracy:75},
+ ];
+ expect(visiblePerformanceRows(rows,"all","name").map(r=>r.id)).toEqual(["3","2","1"]);
+ expect(visiblePerformanceRows(rows,"all","hours").map(r=>r.id)).toEqual(["2","1","3"]);
+ expect(visiblePerformanceRows(rows,"all","accuracy").map(r=>r.id)).toEqual(["3","2","1"]);
+ expect(rows.map(r=>r.id)).toEqual(["1","2","3"]);
+});
+test("filtros respeitam matérias novas e categorias da fonte única, não o nome histórico",()=>{
+ const custom={id:"new",name:"Matéria personalizada",tribunal_data:{number:1000000,categories:["goBasic","dfSpecific"],topics:[]},hours:0,minutes:0,qDone:0,accuracy:0};
+ for(const filter of ["all","go","df","basic","specific"])expect(visiblePerformanceRows([custom],filter,"name")).toEqual([custom]);
+ expect(visiblePerformanceRows([custom],"writing","name")).toEqual([]);
+ expect(performanceTribunalLabel(custom)).toBe("TJ Goiás + TJDFT");
+});

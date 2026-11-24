@@ -1,7 +1,7 @@
 name: Validate tribunais
 on:
   push:
-    branches: [tribunais-tjgo-tjdft, main]
+    branches: [tribunais-tjgo-tjdft, integracao-bora-estudar, main]
   pull_request:
     branches: [main]
 permissions:
@@ -16,5 +16,5 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun scripts/auditar-tribunais.mjs
-      - run: bun test src/lib/planner-api.test.js
+      - run: bun test src/lib/planner-api.test.js src/lib/tribunal-subject-source.test.js
       - run: bun run build

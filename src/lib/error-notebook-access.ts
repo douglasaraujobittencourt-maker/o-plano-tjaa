@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getEditalCatalog } from "@/lib/edital-catalog";
-import { isTribunalSubject } from "@/lib/tribunal-catalog";
+import {getSubjects} from "@/lib/planner-api";
 import { getEtapasAutomaticasEdital, etapaDoAssunto } from "@/lib/edital-auto-progress";
 
 export type EligibleErrorSubject = {
@@ -26,12 +26,10 @@ export async function getErrorNotebookAccess(): Promise<ErrorNotebookAccess> {
   const { data: auth, error: authError } = await supabase.auth.getUser();
   if (authError || !auth.user) throw new Error("Entre na sua conta para acessar o Caderno de Erros.");
 
-  const { data: subjects, error: subjectsError } = await supabase
-    .from("subjects").select("id, name, study_status").order("ord");
-  if (subjectsError) throw subjectsError;
+  const subjects=await getSubjects();
 
   const options: EligibleErrorSubject[] = (subjects ?? [])
-    .filter(s => isTribunalSubject(s.name) && s.study_status === "finalized")
+    .filter(s => s.study_status === "finalized")
     .map(s => ({ value: "subject:" + s.id, name: s.name, kind: "subject" as const, subjectId: s.id }));
 
   const catalog = await getEditalCatalog();

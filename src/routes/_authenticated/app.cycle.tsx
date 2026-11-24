@@ -9,7 +9,8 @@ import { Repeat, Layers, CheckCircle2, ArrowRightCircle, Plus, Minus, PenTool, P
 import { toast } from "sonner";
 import { localDateStr, addDaysStr } from "@/lib/dates";
 
-import { subjectBelongsToBank } from "@/lib/bank-exams";
+import {subjectMatchesExam,isWritingSubject} from "@/lib/tribunal-subject-source";
+import {getSubjects} from "@/lib/planner-api";
 
 import { tribunalStudyPlan } from "@/lib/tribunal-study-plan";
 import { tribunalGroups } from "@/lib/tribunal-catalog";
@@ -53,9 +54,7 @@ function CyclePage() {
   const { data: subjects = [], refetch: refetchSubjects } = useQuery({
     queryKey: ["subjects-blocks", "tribunais"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("subjects").select("*").order("ord");
-      if (error) throw error;
-      return (data ?? []).filter(s => subjectBelongsToBank(s.name, "bnb"))
+      return (await getSubjects())
         .map((s, index) => ({
           ...s,
           study_block: 1,
@@ -89,11 +88,11 @@ function CyclePage() {
     },
   });
 
-  const activeSubjects = subjects.filter((s: any) => s.study_status === "active" && s.name !== "Redação (Prova Discursiva)");
+  const activeSubjects = subjects.filter((s: any) => s.study_status === "active" && !isWritingSubject(s));
   const finalizedSubjects = subjects.filter((s: any) => s.study_status === "finalized");
-  const pendingSubjects = subjects.filter((s: any) => s.study_status === "pending" && s.name !== "Redação (Prova Discursiva)");
+  const pendingSubjects = subjects.filter((s: any) => s.study_status === "pending" && !isWritingSubject(s));
 
-  const redactionSubject = subjects.find((s: any) => s.name === "Redação (Prova Discursiva)");
+  const redactionSubject = subjects.find((s: any) => isWritingSubject(s));
   const isRedactionActive = redactionSubject?.study_status === "active";
   const essaysWrittenThisWeek = weekSessions.filter(s=>s.minutes>0).length;
 
@@ -118,11 +117,11 @@ function CyclePage() {
 
   const updateStatus=async(groupName:string,newStatus:string)=>{
     const s=subjects.find(s=>s.name===groupName);
-    if(!s||s.name==="Redação (Prova Discursiva)")return;
+    if(!s||isWritingSubject(s))return;
     if(newStatus==="finalized"&&s.study_status==="active")return handleFinalize(s.id,s.name);
     toast.error("O ciclo mantém quatro matérias objetivas. Conclua uma matéria ativa para liberar a próxima.");
   };
-  const validSlots=cycle.filter(s=>s.subject&&subjectBelongsToBank(s.subject.name,"bnb"));
+  const validSlots=cycle.filter(s=>s.subject&&subjectMatchesExam(s.subject as any,"bnb"));
   const slotNames=new Map(validSlots.map(s=>[s.ord,s.subject?.name??""]));
   const currentSessions=tribunalStudyPlan.sessions.map(session=>session.map(slot=>{
     const g=tribunalGroups.find(g=>g.name===slot.subject);
@@ -158,7 +157,7 @@ function CyclePage() {
         <h2 className="font-semibold">Ciclo de estudos · sessões alternadas</h2>
         <p className="text-xs text-muted-foreground">Sessões flexíveis, sem dia fixo. Retome de onde parou. Revisões e questões dentro de cada bloco.</p>
         {currentSessions.map((session,i)=><div key={i} className="flex flex-wrap gap-2 text-sm border-b pb-2"><strong>Sessão {i+1}</strong>{session.map((slot,j)=><span key={j}>{slot.subject} · {slot.minutes} min</span>)}</div>)}
-        <p className="text-sm">{cycle.filter(s=>s.subject&&subjectBelongsToBank(s.subject.name,"bnb")).map(s=>s.subject?.name+" "+s.hours_per_cycle.toLocaleString("pt-BR")+"h").join(" · ")}</p>
+        <p className="text-sm">{cycle.filter(s=>s.subject&&subjectMatchesExam(s.subject as any,"bnb")).map(s=>s.subject?.name+" "+s.hours_per_cycle.toLocaleString("pt-BR")+"h").join(" · ")}</p>
         <p className="text-xs text-muted-foreground">Quando uma matéria objetiva termina, passa a revisão e entra a próxima da fila. A próxima disciplina assume a posição e a carga da anterior.</p>
       </Card>
       {/* Redação Banner */}
@@ -338,7 +337,7 @@ function CyclePage() {
                     {statusBadge}
                     <select
                       value={s.study_status}
-                      disabled={s.study_status!=="active"||s.name==="Redação (Prova Discursiva)"}
+                      disabled={s.study_status!=="active"||isWritingSubject(s)}
                       onChange={(e) => updateStatus(s.name, e.target.value)}
                       className="bg-muted text-muted-foreground border border-border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer font-medium"
                     >

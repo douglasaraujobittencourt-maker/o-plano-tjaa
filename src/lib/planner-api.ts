@@ -68,7 +68,7 @@ export async function getCycle() {
 }
 
 export async function getTodaySessions(date: string) {
-  const { data } = await supabase.from("study_sessions").select("*, subject:subjects(name,color)").eq("session_date", date).order("created_at", { ascending: false });
+  const { data } = await supabase.from("study_sessions").select("*, subject:subjects(*)").eq("session_date", date).order("created_at", { ascending: false });
   return data ?? [];
 }
 

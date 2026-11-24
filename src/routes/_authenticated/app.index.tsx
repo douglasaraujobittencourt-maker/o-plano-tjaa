@@ -119,7 +119,7 @@ function Dashboard() {
   const greetingName = profile?.display_name?.trim() ||
     (user.user_metadata?.display_name as string | undefined) ||
     user.email?.split("@")[0] || "Estudante";
-  const { data: subjects = [] } = useQuery({ queryKey: ["subjects"], queryFn: getSubjects });
+  const { data: subjects = [] } = useQuery({ queryKey: ["subjects"], queryFn: getSubjects, refetchInterval: 5000 });
   const { data: dueReviews = [] } = useQuery({ queryKey: ["reviews-due", today], queryFn: () => getDueReviews(today) });
   const { data: weekSessions = [] } = useQuery({ queryKey: ["week", weekStart, today], queryFn: () => getSessionsBetween(weekStart, today) });
   const { data: monthSessions = [] } = useQuery({ queryKey: ["month", monthStart, today], queryFn: () => getSessionsBetween(monthStart, today) });

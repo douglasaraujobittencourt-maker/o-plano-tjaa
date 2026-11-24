@@ -41,7 +41,7 @@ function StudyPage() {
   const { bank } = useBankExam();
   const qc = useQueryClient();
   const today = localDateStr();
-  const { data: subjects = [] } = useQuery({ queryKey: ["subjects"], queryFn: getSubjects });
+  const { data: subjects = [] } = useQuery({ queryKey: ["subjects"], queryFn: getSubjects, refetchInterval: 5000 });
   const { data: todaySessions = [] } = useQuery({ queryKey: ["today", today], queryFn: () => getTodaySessions(today) });
 
   const [subject, setSubject] = useState<string>("");

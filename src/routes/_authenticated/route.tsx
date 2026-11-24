@@ -87,6 +87,10 @@ function AppShell() {
       void qc.invalidateQueries({ queryKey: ["subjects-blocks"] });
       void qc.invalidateQueries({ queryKey: ["cycle-slots"] });
       void qc.invalidateQueries({ queryKey: ["all-sessions"] });
+      void qc.invalidateQueries({ queryKey: ["today"] });
+      void qc.invalidateQueries({ queryKey: ["sessions"] });
+      void qc.invalidateQueries({ queryKey: ["week"] });
+      void qc.invalidateQueries({ queryKey: ["month"] });
       void qc.invalidateQueries({ queryKey: ["reviews-due"] });
     };
     const storage = (event: StorageEvent) => { if (event.key === `o-plano:progress:${user.id}`) changed(); };

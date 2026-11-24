@@ -33,10 +33,9 @@ export const Route = createFileRoute("/_authenticated/app/cycle")({
   component: CyclePage,
 });
 
-// A fila usa a classificação e os rótulos compartilhados, com os dois tons
-// de Goiás solicitados especificamente para esta seção.
+// A fila usa as cores e rótulos compartilhados, exceto o amarelo
+// de Goiás solicitado especificamente para esta seção.
 const QUEUE_COLORS: Partial<Record<ProgressCategory,string>>={
-  goBasic:"#6B7A3A",
   goSpecific:"#EAB308",
 };
 const QUEUE_CATEGORIES: ProgressCategory[]=["goBasic","goSpecific","dfBasic","dfSpecific"];

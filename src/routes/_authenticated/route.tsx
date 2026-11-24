@@ -37,7 +37,7 @@ const NAV = [
   { to: "/app/reviews", label: "4 - Revisões", icon: Brain },
   { to: "/app/edital", label: "5 - Edital Verticalizado", icon: BookOpenCheck },
   { to: "/app/cycle", label: "Ciclo de Estudos", icon: Layers },
-  { to: "/app/importance", label: "Grau de Importância", icon: TrendingUp },
+  { to: "/app/importance", label: "Raio-X do Edital", icon: TrendingUp },
   { to: "/app/performance", label: "6 - Desempenho", icon: TrendingUp },
   { to: "/app/settings", label: "Configurações", icon: Settings2 },
 ] as const;

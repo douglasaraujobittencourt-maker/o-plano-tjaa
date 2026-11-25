@@ -50,20 +50,20 @@ export function EditableCycleCard({subjects}:{subjects:Subject[]}){
    {sessions.map((session,i)=><div key={i} className="flex flex-wrap items-center gap-2 text-sm border-b pb-2"><strong>Sessão {i+1}</strong>{session.map((block,j)=><span key={j} className="inline-flex items-center gap-1.5">{names.get(block.subjectId)&&<ProgressTribunalDots subject={names.get(block.subjectId)!} bank="bnb"/>}{names.get(block.subjectId)?.name??"Matéria"} · {block.minutes} min</span>)}<span className="ml-auto text-xs text-muted-foreground">{session.reduce((n,b)=>n+b.minutes,0)} min</span></div>)}
    <p className="text-sm">{summary(totals)}</p>
    <p className="text-xs text-muted-foreground">Total planejado: {formatCycleHours(weeklyTotal)}. Ao concluir uma matéria objetiva, a próxima da fila assume sua posição e carga.</p>
-   <section aria-label="Horas semanais planejadas por matéria" style={{fontSize:"inherit"}} className="mt-2 w-full max-w-xl rounded-lg border border-[#444444] bg-[#212121] p-2.5 text-[#e8e8e8]">
+   <section aria-label="Horas semanais planejadas por matéria" style={{fontSize:"inherit"}} className="mt-2 w-full max-w-xl rounded-lg border border-sidebar-border bg-sidebar p-2.5 text-sidebar-foreground dark:border-primary-foreground/20 dark:bg-primary dark:text-primary-foreground">
     <div className="space-y-1.5">
-     {weeklyRows.length===0&&<p className="text-[#c7c7c7]">Nenhum bloco programado.</p>}
+     {weeklyRows.length===0&&<p className="opacity-80">Nenhum bloco programado.</p>}
      {weeklyRows.map(([id,minutes])=><div key={id} className="space-y-0.5">
       <div className="flex items-baseline justify-between gap-2">
        <span className="min-w-0 break-words font-semibold">{names.get(id)?.name??"Selecione a matéria"}</span>
        <span className="shrink-0 tabular-nums">{formatCycleHours(minutes)}</span>
       </div>
       <div aria-hidden="true" className="h-1 w-full">
-       <div className="h-full rounded-full bg-[#84cc16] transition-[width] duration-300 motion-reduce:transition-none" style={{width:`${weeklyMax>0?Math.max(0,Math.min(100,minutes/weeklyMax*100)):0}%`}}/>
+       <div className="h-full rounded-full bg-primary dark:bg-primary-foreground transition-[width] duration-300 motion-reduce:transition-none" style={{width:`${weeklyMax>0?Math.max(0,Math.min(100,minutes/weeklyMax*100)):0}%`}}/>
       </div>
      </div>)}
     </div>
-    <div className="mt-2 flex items-baseline justify-between gap-2 border-t border-[#444444] pt-2 font-semibold">
+    <div className="mt-2 flex items-baseline justify-between gap-2 border-t border-sidebar-border dark:border-primary-foreground/20 pt-2 font-semibold">
      <span>Total semanal</span><span className="shrink-0 tabular-nums">{formatCycleHours(weeklyTotal)}</span>
     </div>
    </section>

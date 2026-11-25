@@ -22,6 +22,9 @@ export function EditableCycleCard({subjects}:{subjects:Subject[]}){
  const names=new Map(subjects.map(s=>[s.id,s]));
  const sessions=query.data?.sessions??[];
  const totals=cycleTotals(sessions);
+ const weeklyRows=[...totals].sort((a,b)=>b[1]-a[1]);
+ const weeklyMax=Math.max(0,weeklyRows[0]?.[1]??0);
+ const weeklyTotal=weeklyRows.reduce((sum,[,minutes])=>sum+minutes,0);
  const draftTotals=cycleTotals(draft??[]);
  const addBlock=()=>({subjectId:"",minutes:30});
  const edit=()=>{if(!query.data)return;setRevision(query.data.revision);setDraft(sessions.map(s=>s.map(b=>({...b}))));setError("");};
@@ -46,7 +49,24 @@ export function EditableCycleCard({subjects}:{subjects:Subject[]}){
   {query.isPending?<p className="text-sm text-muted-foreground">Carregando ciclo…</p>:query.isError?<p role="alert" className="text-sm text-destructive">Não foi possível carregar a programação. <Button size="sm" variant="link" onClick={()=>void query.refetch()}>Tentar novamente</Button></p>:<>
    {sessions.map((session,i)=><div key={i} className="flex flex-wrap items-center gap-2 text-sm border-b pb-2"><strong>Sessão {i+1}</strong>{session.map((block,j)=><span key={j} className="inline-flex items-center gap-1.5">{names.get(block.subjectId)&&<ProgressTribunalDots subject={names.get(block.subjectId)!} bank="bnb"/>}{names.get(block.subjectId)?.name??"Matéria"} · {block.minutes} min</span>)}<span className="ml-auto text-xs text-muted-foreground">{session.reduce((n,b)=>n+b.minutes,0)} min</span></div>)}
    <p className="text-sm">{summary(totals)}</p>
-   <p className="text-xs text-muted-foreground">Total planejado: {formatCycleHours([...totals.values()].reduce((n,m)=>n+m,0))}. Ao concluir uma matéria objetiva, a próxima da fila assume sua posição e carga.</p>
+   <p className="text-xs text-muted-foreground">Total planejado: {formatCycleHours(weeklyTotal)}. Ao concluir uma matéria objetiva, a próxima da fila assume sua posição e carga.</p>
+   <section aria-label="Horas semanais planejadas por matéria" className="mt-4 rounded-3xl border border-[#444444] bg-[#212121] p-4 text-[#e8e8e8] sm:p-6">
+    <div className="space-y-4">
+     {weeklyRows.length===0&&<p className="text-sm text-[#c7c7c7]">Nenhum bloco programado.</p>}
+     {weeklyRows.map(([id,minutes])=><div key={id} className="space-y-3">
+      <div className="flex items-baseline justify-between gap-3 text-base sm:text-xl">
+       <span className="min-w-0 break-words font-semibold">{names.get(id)?.name??"Selecione a matéria"}</span>
+       <span className="shrink-0 tabular-nums">{formatCycleHours(minutes)}</span>
+      </div>
+      <div aria-hidden="true" className="h-2.5 w-full">
+       <div className="h-full rounded-full bg-[#84cc16] transition-[width] duration-300 motion-reduce:transition-none" style={{width:`${weeklyMax>0?Math.max(0,Math.min(100,minutes/weeklyMax*100)):0}%`}}/>
+      </div>
+     </div>)}
+    </div>
+    <div className="mt-6 flex items-baseline justify-between gap-3 border-t border-[#444444] pt-6 text-base font-semibold sm:text-xl">
+     <span>Total semanal</span><span className="shrink-0 tabular-nums">{formatCycleHours(weeklyTotal)}</span>
+    </div>
+   </section>
   </>}
   <Dialog open={draft!==null} onOpenChange={open=>{if(!open&&!saving)setDraft(null);}}>
    <DialogContent className="max-w-2xl max-h-[85dvh] overflow-y-auto"><DialogHeader><DialogTitle>Editar sessões do ciclo</DialogTitle></DialogHeader>

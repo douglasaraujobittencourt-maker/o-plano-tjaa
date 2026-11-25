@@ -36,7 +36,7 @@ export function EditableCycleCard({subjects}:{subjects:Subject[]}){
   }catch(e){setError(cycleSaveError(e));void qc.invalidateQueries({queryKey:["editable-cycle"]});}
   finally{setSaving(false);}
  };
- const summary=(values:Map<string,number>)=>[...values].map(([id,m])=>(names.get(id)?.name??"Selecione a matéria")+" "+formatCycleHours(m)).join(" · ")||"Nenhum bloco programado.";
+ const summary=(values:Map<string,number>)=>[...values].sort((a,b)=>b[1]-a[1]).map(([id,m])=>(names.get(id)?.name??"Selecione a matéria")+" "+formatCycleHours(m)).join(" · ")||"Nenhum bloco programado.";
  return <Card className="p-5 space-y-3">
   <div className="flex flex-wrap items-center justify-between gap-2">
    <h2 className="font-semibold">Ciclo de estudos · sessões alternadas</h2>

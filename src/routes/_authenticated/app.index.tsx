@@ -194,7 +194,7 @@ function Dashboard() {
     const restante = Math.max(0, +(planejado - feito).toFixed(1));
     const sigla = getSubjectSigla(s.name);
     return { ...s, sigla, planejado, feito, restante };
-  });
+  }).sort((a, b) => b.planejado - a.planejado);
 
   const totalWeeklyPlanned = weeklySubjectData.reduce((a, s) => a + s.planejado, 0);
   const totalWeeklyDone = +weeklySubjectData.reduce((a, s) => a + s.feito, 0).toFixed(1);

@@ -142,8 +142,9 @@ function StudyPage() {
   });
 
   // Edit / delete sessions
-  type EditState = { id: string; subject_id: string; kind: "leitura"|"video"|"questoes"|"redacao"; minutes: number; pages_read: number; questions_done: number; questions_correct: number; notes: string };
+  type EditState = { id: string; subject_id: string; topicId: string; originalTopicId: string; kind: "leitura"|"video"|"questoes"|"redacao"; minutes: number; pages_read: number; questions_done: number; questions_correct: number; notes: string };
   const [editSession, setEditSession] = useState<EditState | null>(null);
+  const editTopics = topicsForSubject(subjects.find(s => s.id === editSession?.subject_id), "bnb");
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
 
   const updateSess = useMutation({
@@ -151,6 +152,7 @@ function StudyPage() {
       if (!editSession) return;
       await updateSession(editSession.id, {
         subject_id: editSession.subject_id || null,
+        ...(editSession.topicId !== editSession.originalTopicId ? { edital_assunto_id: editSession.topicId === "none" ? null : Number(editSession.topicId) } : {}),
         kind: editSession.kind === "video" ? "leitura" : editSession.kind,
         task: editSession.kind === "redacao" ? "Redação" : editSession.kind === "video" ? "Videoaula" : editSession.kind === "leitura" ? "Leitura de PDF" : "Questões",
         minutes: Math.max(1, editSession.minutes),
@@ -357,6 +359,8 @@ function StudyPage() {
                 id: s.id, subject_id: s.subject_id ?? "", kind: s.kind === "redacao" ? "redacao" : s.task === "Videoaula" ? "video" : s.kind === "questoes" ? "questoes" : "leitura", minutes: s.minutes,
                 pages_read: s.pages_read, questions_done: s.questions_done, questions_correct: s.questions_correct,
                 notes: s.notes ?? "",
+                topicId: s.edital_assunto_id == null ? "none" : String(idCanonicoAssunto(s.edital_assunto_id)),
+                originalTopicId: s.edital_assunto_id == null ? "none" : String(idCanonicoAssunto(s.edital_assunto_id)),
               })}><Pencil className="w-4 h-4" /></Button>
               <Button size="icon" variant="ghost" onClick={() => setDeleteSessionId(s.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
             </li>
@@ -393,6 +397,13 @@ function StudyPage() {
                 <div><Label>Páginas lidas</Label><Input type="number" min={0} value={editSession.pages_read} onChange={(e) => setEditSession({ ...editSession, pages_read: +e.target.value })} /></div>
                 <div><Label>Questões feitas</Label><Input type="number" min={0} value={editSession.questions_done} onChange={(e) => setEditSession({ ...editSession, questions_done: +e.target.value })} /></div>
                 <div><Label>Questões corretas</Label><Input type="number" min={0} value={editSession.questions_correct} onChange={(e) => setEditSession({ ...editSession, questions_correct: +e.target.value })} /></div>
+              </div>
+              <div><Label htmlFor="edit-session-topic">Assunto</Label>
+                <select id="edit-session-topic" value={editSession.topicId} onChange={e => setEditSession({ ...editSession, topicId: e.target.value })} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option value="none">Sem assunto vinculado</option>
+                  {editSession.topicId !== "none" && !editTopics.some(a => String(idCanonicoAssunto(a.id)) === editSession.topicId) && <option value={editSession.topicId}>Assunto indisponível (histórico preservado)</option>}
+                  {editTopics.map(a => <option key={a.id} value={String(idCanonicoAssunto(a.id))}>{a.topico_central}</option>)}
+                </select>
               </div>
               <div><Label>Notas</Label><Input value={editSession.notes} onChange={(e) => setEditSession({ ...editSession, notes: e.target.value })} /></div>
               <Button onClick={() => updateSess.mutate()} disabled={updateSess.isPending} className="w-full">Salvar alterações</Button>

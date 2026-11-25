@@ -12,6 +12,7 @@ import {
   updateSubject,
   setSubjectStatus,
   logSession,
+  announcePlannerProgress,
 } from "@/lib/planner-api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { topicsForSubject } from "@/lib/tribunal-subject-source";
 
 export const Route = createFileRoute("/_authenticated/app/reviews")({
   head: () => ({
@@ -185,17 +187,27 @@ function ReviewsPage() {
     subjectName: string;
   }>({ open: false, subjectId: "", subjectName: "" });
 
+  const [quickTopic, setQuickTopic] = useState("none");
+  const quickTopics = topicsForSubject(subjects.find(s => s.id === quickQuestionModal.subjectId), "bnb");
   const [quickDone, setQuickDone] = useState("20");
   const [quickCorrect, setQuickCorrect] = useState("18");
   const [quickMinutes, setQuickMinutes] = useState("30");
 
   const saveQuickQuestions = useMutation({
     mutationFn: async () => {
-      const qDone = Number(quickDone) || 0;
-      const qCorr = Number(quickCorrect) || 0;
-      const mins = Number(quickMinutes) || 1;
+      const qDone = Number(quickDone);
+      const qCorr = Number(quickCorrect);
+      const mins = Number(quickMinutes);
+      if (!quickDone.trim() || !quickCorrect.trim() || !Number.isInteger(qDone) || qDone < 1 || !Number.isInteger(qCorr) || qCorr < 0 || qCorr > qDone) throw new Error("Informe questões feitas e acertos válidos.");
+      if (!Number.isInteger(mins) || mins < 1) throw new Error("Informe um tempo válido em minutos.");
+      const selected = (await getSubjects()).find(s => s.id === quickQuestionModal.subjectId);
+      if (!selected) throw new Error("Matéria não encontrada.");
+      const topic = topicsForSubject(selected, "bnb").find(a => String(a.id) === quickTopic);
+      if (quickTopic !== "none" && !topic) throw new Error("Selecione um assunto cadastrado.");
       await logSession({
         subject_id: quickQuestionModal.subjectId,
+        edital_assunto_id: topic?.id ?? null,
+        lesson: topic?.topico_central ?? null,
         kind: "questoes",
         minutes: mins,
         questions_done: qDone,
@@ -205,6 +217,7 @@ function ReviewsPage() {
     },
     onSuccess: () => {
       toast.success("Questões de revisão registradas com sucesso! 🔥");
+      announcePlannerProgress();
       setQuickQuestionModal({ open: false, subjectId: "", subjectName: "" });
       qc.invalidateQueries();
     },
@@ -742,6 +755,7 @@ function ReviewsPage() {
                           <Button
                             size="sm"
                             onClick={() => {
+                              setQuickTopic("none");
                               setQuickQuestionModal({
                                 open: true,
                                 subjectId: s.id,
@@ -827,6 +841,13 @@ function ReviewsPage() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="quick-review-topic">Assunto</Label>
+              <select id="quick-review-topic" value={quickTopic} onChange={e => setQuickTopic(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="none">Revisão geral da matéria (sem assunto)</option>
+                {quickTopics.map(a => <option key={a.id} value={String(a.id)}>{a.topico_central}</option>)}
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="qDone">Questões Feitas</Label>

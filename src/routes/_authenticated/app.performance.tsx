@@ -6,11 +6,14 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { TrendingUp, Clock, CheckCircle2, Target, BarChart2, BookOpen, Layers } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
+import { ChevronRight, ChevronDown } from "lucide-react";
+import { aggregateTopicPerformance } from "@/lib/topic-performance";
+import { idCanonicoAssunto } from "@/lib/edital-topic-equivalence";
 import { sumStudyMinutes, studyMinutesBy } from "@/lib/study-metrics";
 import { ProgressTribunalDots, ProgressTribunalLegend } from "@/components/tribunal-progress-colors";
 import { performanceFilters, performanceTribunalLabel, visiblePerformanceRows, type PerformanceFilter, type PerformanceSort } from "@/lib/individual-performance";
-import { isWritingSubject } from "@/lib/tribunal-subject-source";
+import { isWritingSubject, topicsForSubject } from "@/lib/tribunal-subject-source";
 import {
   BarChart,
   Bar,
@@ -50,6 +53,12 @@ function PerformancePage() {
   const [timeRange, setTimeRange] = useState<"all" | "30d">("all");
   const [subjectFilter,setSubjectFilter]=useState<PerformanceFilter>("all");
   const [subjectSort,setSubjectSort]=useState<PerformanceSort>("name");
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(() => new Set());
+  const toggleSubject = (id: string) => setExpandedSubjects(previous => {
+    const next = new Set(previous);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   // Mesmas consultas e histórico das demais telas; a atualização periódica
   // cobre mudanças entre dispositivos mesmo quando Realtime não estiver habilitado.
@@ -88,6 +97,7 @@ function PerformancePage() {
       qCorrect,
       accuracy,
       sessionsCount: subSessions.length,
+      topicStats: aggregateTopicPerformance(topicsForSubject(s, "bnb"), subSessions, idCanonicoAssunto),
     };
   });
 
@@ -133,7 +143,7 @@ function PerformancePage() {
             <TrendingUp className="w-7 h-7 text-primary" /> Desempenho
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            Métricas completas e individualizadas por matéria: horas estudadas, questões feitas e taxa de acerto.
+            Métricas individualizadas por matéria e assunto: horas estudadas, questões feitas e taxa de acerto.
           </p>
         </div>
 
@@ -217,7 +227,7 @@ function PerformancePage() {
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Layers className="w-5 h-5 text-primary" />
-              Desempenho Individual por Matéria
+              Desempenho Individual por Matéria e Assunto
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               Horas estudadas, questões feitas, acertos e taxa de aproveitamento por disciplina ({timeRange === "all" ? "Histórico Completo" : "Últimos 30 dias"}).
@@ -229,6 +239,7 @@ function PerformancePage() {
         </div>
 
         <ProgressTribunalLegend />
+        <p className="text-xs text-muted-foreground">Clique na seta ao lado de uma matéria para consultar o desempenho de todos os seus assuntos.</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div role="group" aria-label="Filtrar matérias" className="flex flex-wrap gap-1.5">
             {performanceFilters.map(filter=><button key={filter.value} type="button"
@@ -272,7 +283,6 @@ function PerformancePage() {
               {!tableLoading&&visibleStats.map((row) => {
                 // Color formatting for accuracy
                 let accColor = "text-muted-foreground";
-                let badgeVariant = "outline";
                 if (row.qDone > 0) {
                   if (row.accuracy >= 80) accColor = "text-emerald-600 dark:text-emerald-400 font-bold";
                   else if (row.accuracy >= 65) accColor = "text-amber-600 dark:text-amber-400 font-bold";
@@ -280,10 +290,14 @@ function PerformancePage() {
                 }
 
                 return (
-                  <tr key={row.id} className="hover:bg-muted/30 transition">
+                  <Fragment key={row.id}>
+                  <tr className="hover:bg-muted/30 transition">
                     {/* Nome da Matéria */}
                     <td className="py-3 px-3 font-semibold">
                       <div className="flex items-center gap-2.5">
+                        <button type="button" onClick={() => toggleSubject(row.id)} aria-expanded={expandedSubjects.has(row.id)} aria-label={`${expandedSubjects.has(row.id) ? "Recolher" : "Expandir"} assuntos de ${row.name}`} className="p-1 rounded hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary shrink-0">
+                          {expandedSubjects.has(row.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        </button>
                         <ProgressTribunalDots subject={row} bank="bnb" />
                         <div className="min-w-0">
                           <span className="block">{row.name}</span>
@@ -349,6 +363,20 @@ function PerformancePage() {
                       {row.study_status==="pending"&&<span className="block text-[10px] text-muted-foreground">Na fila de espera</span>}
                     </td>
                   </tr>
+                  {expandedSubjects.has(row.id) && (row.topicStats.length === 0 ? (
+                    <tr className="bg-muted/20"><td colSpan={6} className="py-3 px-9 text-xs text-muted-foreground">Nenhum assunto cadastrado nesta matéria.</td></tr>
+                  ) : row.topicStats.map(topic => {
+                    const color = topic.accuracy === null ? "text-muted-foreground" : topic.accuracy >= 80 ? "text-emerald-600 dark:text-emerald-400 font-bold" : topic.accuracy >= 65 ? "text-amber-600 dark:text-amber-400 font-bold" : "text-destructive font-bold";
+                    return <tr key={topic.id ?? "unlinked"} className="bg-muted/20 hover:bg-muted/40">
+                      <td className="py-2 pl-10 pr-3 text-xs font-medium break-words">{topic.name}</td>
+                      <td className="py-2 px-3 text-right text-muted-foreground">—</td>
+                      <td className="py-2 px-3 text-right tabular-nums">{topic.qDone}</td>
+                      <td className="py-2 px-3 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{topic.qCorrect}</td>
+                      <td className="py-2 px-3 text-right">{topic.accuracy === null ? <span className="text-xs text-muted-foreground">—<span className="block">Sem questões</span></span> : <div className="flex flex-col items-end"><span className={color}>{topic.accuracy}%</span><div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden mt-1"><div className={`h-full rounded-full ${topic.accuracy >= 80 ? "bg-emerald-500" : topic.accuracy >= 65 ? "bg-amber-500" : "bg-destructive"}`} style={{ width: `${Math.min(100, Math.max(0, topic.accuracy))}%` }} /></div></div>}</td>
+                      <td className="py-2 px-3"></td>
+                    </tr>;
+                  }))}
+                  </Fragment>
                 );
               })}
 

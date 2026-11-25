@@ -82,14 +82,33 @@ export async function getTodaySessions(date: string) {
   return data ?? [];
 }
 
+async function fetchSessionPage(cursor: string | null, from?: string, to?: string) {
+  let query = supabase.from("study_sessions").select("*, subject:subjects(id,name,color)").order("id", { ascending: true }).limit(500);
+  if (from !== undefined) query = query.gte("session_date", from);
+  if (to !== undefined) query = query.lte("session_date", to);
+  if (cursor !== null) query = query.gt("id", cursor);
+  return await query;
+}
+
+async function getSessionHistory(from?: string, to?: string) {
+  const rows: NonNullable<Awaited<ReturnType<typeof fetchSessionPage>>["data"]> = [];
+  let cursor: string | null = null;
+  // Paginação por ID estável, sem duplicação e sem depender do limite configurado no servidor.
+  while (true) {
+    const { data, error } = await fetchSessionPage(cursor, from, to);
+    if (error) throw error;
+    if (!data?.length) return rows;
+    rows.push(...data);
+    cursor = data[data.length - 1].id;
+  }
+}
+
 export async function getSessionsBetween(from: string, to: string) {
-  const { data } = await supabase.from("study_sessions").select("*, subject:subjects(id,name,color)").gte("session_date", from).lte("session_date", to);
-  return data ?? [];
+  return getSessionHistory(from, to);
 }
 
 export async function getAllSessions() {
-  const { data } = await supabase.from("study_sessions").select("*, subject:subjects(id,name,color)");
-  return data ?? [];
+  return getSessionHistory();
 }
 
 export function getReviewIntervalDays(layer: number): number {
@@ -201,6 +220,12 @@ export async function completeTribunalSubject(subjectId:string):Promise<string|n
  await announcePlannerProgress();return next?.name??null;
 }
 
+function validateQuestionCounts(done: number, correct: number) {
+  if (!Number.isInteger(done) || !Number.isInteger(correct) || done < 0 || correct < 0 || correct > done) {
+    throw new Error("Informe quantidades inteiras, não negativas, e acertos menores ou iguais às questões feitas.");
+  }
+}
+
 export async function logSession(input: {
   subject_id: string | null; kind: "leitura"|"questoes"|"revisao"|"redacao"|"flashcards";
   minutes: number; pages_read?: number; questions_done?: number; questions_correct?: number; notes?: string;
@@ -210,6 +235,7 @@ export async function logSession(input: {
 }) {
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) throw new Error("no user");
+  validateQuestionCounts(input.questions_done ?? 0, input.questions_correct ?? 0);
   // Always stamp the session with the user's LOCAL date — the DB default is UTC,
   // which pushes evening sessions (21h–24h em SP) para o dia seguinte.
   const today = input.session_date || localDateStr();
@@ -440,8 +466,32 @@ export async function createFlashcard(input: { front: string; back: string; subj
 export async function updateSession(id: string, patch: {
   subject_id?: string | null; kind?: "leitura"|"questoes"|"revisao"|"redacao"|"flashcards";
   minutes?: number; pages_read?: number; questions_done?: number; questions_correct?: number; notes?: string | null;
+  edital_assunto_id?: number | null;
   task?: string | null; lesson?: string | null; page_start?: number | null; page_end?: number | null; session_date?: string;
 }) {
+  const { data: original, error: readError } = await supabase.from("study_sessions").select("subject_id, edital_assunto_id, questions_done, questions_correct").eq("id", id).maybeSingle();
+  if (readError) throw readError;
+  if (!original) throw new Error("Sessão não encontrada.");
+  if (patch.questions_done !== undefined || patch.questions_correct !== undefined) {
+    validateQuestionCounts(patch.questions_done ?? original.questions_done ?? 0, patch.questions_correct ?? original.questions_correct ?? 0);
+  }
+  patch = { ...patch };
+  const nextSubject = patch.subject_id === undefined ? original.subject_id : patch.subject_id;
+  if (nextSubject !== original.subject_id && patch.edital_assunto_id === undefined) {
+    patch.edital_assunto_id = null;
+  }
+  if (patch.edital_assunto_id !== undefined) {
+    if (patch.edital_assunto_id === null) {
+      if (original.edital_assunto_id !== null || nextSubject !== original.subject_id) patch.lesson = null;
+    } else {
+      const selected = (await getSubjects()).find(s => s.id === nextSubject);
+      const canonical = idCanonicoAssunto(patch.edital_assunto_id);
+      const topic = topicsForSubject(selected, "bnb").find(a => idCanonicoAssunto(a.id) === canonical);
+      if (!topic) throw new Error("Selecione um assunto cadastrado nesta matéria.");
+      patch.edital_assunto_id = canonical;
+      patch.lesson = topic.topico_central;
+    }
+  }
   // Videoaula: ajusta minutos assistidos pela diferença
   {
     const { data: ex } = await supabase.from("study_sessions").select("minutes, subject_id, task").eq("id", id).maybeSingle();

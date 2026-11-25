@@ -228,7 +228,7 @@ function validateQuestionCounts(done: number, correct: number) {
 
 export async function logSession(input: {
   subject_id: string | null; kind: "leitura"|"questoes"|"revisao"|"redacao"|"flashcards";
-  minutes: number; pages_read?: number; questions_done?: number; questions_correct?: number; notes?: string;
+  minutes: number; pages_read?: number; questions_done?: number; questions_correct?: number; notes?: string | null;
   topic?: string; edital_assunto_id?: number | null; is_lesson_finished?: boolean; is_subject_finished?: boolean;
   task?: string | null; lesson?: string | null; page_start?: number | null; page_end?: number | null;
   session_date?: string;
@@ -239,7 +239,8 @@ export async function logSession(input: {
   // Always stamp the session with the user's LOCAL date — the DB default is UTC,
   // which pushes evening sessions (21h–24h em SP) para o dia seguinte.
   const today = input.session_date || localDateStr();
-  const notesText = input.notes || input.topic || null;
+  // null explícito representa um campo opcional deixado vazio; outros chamadores mantêm o fallback legado.
+  const notesText = input.notes === null ? null : input.notes || input.topic || null;
   const { error } = await supabase.from("study_sessions").insert({
     subject_id: input.subject_id,
     kind: input.kind,
@@ -279,7 +280,7 @@ export async function logSession(input: {
 
   // Se a aula foi marcada como finalizada, agenda as 4 etapas de revisão: 7, 15, 30 e 60 dias
   if (input.subject_id && input.is_lesson_finished) {
-    await scheduleLessonReviews(input.subject_id, input.topic || input.notes, input.edital_assunto_id);
+    await scheduleLessonReviews(input.subject_id, input.topic || (input.notes ?? undefined), input.edital_assunto_id);
   }
 
   // Status do ciclo muda somente por ação explícita; revisões não reativam matérias.

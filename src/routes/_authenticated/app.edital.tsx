@@ -19,7 +19,7 @@ export const Route=createFileRoute("/_authenticated/app/edital")({head:()=>({met
 
 function IncidenceTag({origin}:{origin:IncidenceOrigin}){
  const marker=incidencePresentation[origin];
- return <span className={`inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold ${marker.badge}`} title="Correspondência com o levantamento da banca; não significa alta incidência"><span aria-hidden="true">↗</span>{marker.label}</span>;
+ return <span className={`inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold ${marker.badge}`} title="Conteúdo identificado no levantamento de incidência da banca"><span aria-hidden="true">↗</span>{marker.label}</span>;
 }
 function PriorityButton({active,onToggle}:{active:boolean;onToggle:()=>void}){
  return <Button type="button" size="sm" variant={active?"default":"outline"} aria-pressed={active} onClick={onToggle}><TrendingUp aria-hidden="true" className="h-4 w-4"/> Maior incidência</Button>;
@@ -93,11 +93,6 @@ function EditalPage(){
   <p className="text-xs text-muted-foreground">Referências históricas pré-edital. Leis revogadas e versões antigas constam para auditoria; estudar legislação vigente. A discursiva é um treino adicional, não conteúdo programático literal.</p></header>
   <BankExamSelector/>
   <p className="text-xs text-muted-foreground">{bank==="caixa"?topicOrderLabel(bank):"TJGO: disciplinas e assuntos na sequência do Anexo IV; complementos e personalizados ao final. Incidência conforme levantamento aproximado, não previsão de prova."}</p>
-  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-card p-3 text-xs text-muted-foreground" aria-label="Legenda de incidência">
-   <span className="flex flex-wrap items-center gap-2"><IncidenceTag origin="verbena"/> Correspondência com o levantamento (não significa alta incidência).</span>
-   <span className="inline-flex items-center gap-2"><span className="inline-flex items-center gap-1 rounded-md border border-primary/60 bg-primary/10 px-2 py-0.5 font-semibold text-foreground"><TrendingUp className="h-3 w-3" aria-hidden="true"/> Maior incidência</span> Prioridade ao ativar o botão.</span>
-   <span>Texto padrão: conteúdo sem incidência diretamente mapeada.</span>
-  </div>
   <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar matéria ou assunto..." aria-label="Buscar assuntos"/>
   <p className="text-sm text-muted-foreground">{new Set(groups.flatMap(g=>g.topics.map(a=>a.id))).size} assuntos distintos exibidos · referências compartilhadas com um único registro de progresso</p>
   {catalog.isPending&&<p>Carregando edital...</p>}{catalog.isError&&<p role="alert">Erro ao carregar o catálogo.</p>}
@@ -105,7 +100,7 @@ function EditalPage(){
   <Accordion type="multiple" className="space-y-3">
    {groups.map(({m,all,topics,progressRows})=>{const count=progressRows.filter(a=>etapaDoAssunto(progress.data??{},a.id)!=="Pendente").length;
     const priority=!!priorityByMatter[m.numero];
-    const allRows=all.map(a=>{const details=auditedTopicDetails(m.numero,a.id,m.titulo_central,a.topico_central,bank);return {a,details,origin:originFromDetails(details)};});
+    const allRows=all.map(a=>{const details=auditedTopicDetails(m.numero,a.id,m.titulo_central,a.topico_central,bank);return {a,details,origin:originFromDetails(details.filter(d=>d.bank!=="verbena"||d.subtopics.length>0))};});
     const shownIds=new Set(topics.map(a=>a.id));
     const rows=allRows.filter(r=>shownIds.has(r.a.id));
     const summary=summarizeMappedIncidence(allRows.map(r=>({id:r.a.id,details:r.details})));
@@ -116,8 +111,7 @@ function EditalPage(){
      <AccordionContent>{!all.length&&<p className="text-xs text-muted-foreground py-2">Nenhum assunto cadastrado. Adicione assuntos em Bora Estudar.</p>}{m.numero===205&&<p className="text-xs text-muted-foreground py-2">A Constituição do Estado de Goiás aparece nas duas disciplinas do Anexo IV. A referência abaixo usa o mesmo ID e não cria outro registro de progresso.</p>}<div className="flex flex-wrap items-center gap-2 pb-3">
       <PriorityButton active={priority} onToggle={()=>setPriorityByMatter(old=>({...old,[m.numero]:!old[m.numero]}))}/>
       <div className="w-full space-y-1 text-xs text-muted-foreground">
-       <p>{summary.linkedTopics} assuntos do edital vinculados · {summary.themes} temas · {summary.subtopics} subtópicos únicos nos levantamentos.</p>
-       {priority&&<p role="status">{summary.priorityTopics? `Prioridade: ${summary.highThemes} tema(s) de maior incidência · ${summary.highSubtopics} subtópico(s) prioritário(s) · ${summary.priorityTopics} assunto(s) vinculados em destaque. Sem percentual individual, a prioridade é herdada do tema, não uma frequência própria.`:"Não há incidência prioritária mapeada para esta matéria."}</p>}
+       {priority&&<p role="status">{summary.priorityTopics? "Destaque dos assuntos vinculados ao tema de maior incidência.":"Não há incidência prioritária mapeada para esta matéria."}</p>}
        {!priority&&!summary.linkedTopics&&<p>Não há incidência diretamente mapeada para esta matéria.</p>}
       </div>
      </div>

@@ -277,8 +277,10 @@ export function auditedVerbenaDetails(matter:number,id:number):AuditDetail[]{
   }
  }
  const weighted=result.flatMap(d=>d.subtopics).filter(s=>s.weight!=null);
- const max=weighted.length?Math.max(...weighted.map(s=>s.weight!)):Math.max(0,...result.filter(d=>d.subtopics.length).map(d=>d.percent));
- for(const d of result)for(const s of d.subtopics)s.high=max>0&&(weighted.length?s.weight===max:d.percent===max);
+ const max=weighted.length?Math.max(...weighted.map(s=>s.weight!)):0;
+ // Sem peso individual, só a maior incidência da matéria é prioritária.
+ // Ter um único subtópico dentro de uma linha não o torna de alta incidência.
+ for(const d of result)for(const s of d.subtopics)s.high=weighted.length?s.weight===max&&max>0:d.highTheme;
  return result;
 }
 export function auditedTopicDetails(matter:number,id:number,subject:string,title:string,bank:BankExam):AuditDetail[]{
@@ -293,4 +295,28 @@ export function auditedTopicDetails(matter:number,id:number,subject:string,title
 export function originFromDetails(details:readonly IncidenceDetail[]):IncidenceOrigin|null{
  const v=details.some(d=>d.bank==="verbena"),f=details.some(d=>d.bank==="fgv");
  return v&&f?"both":v?"verbena":f?"fgv":null;
+}
+
+// Distinção entre presença no levantamento e prioridade, exclusiva do edital.
+export function isPrioritySubtopic(detail:IncidenceDetail, sub:IncidenceDetail["subtopics"][number]):boolean {
+ return sub.weight!=null ? sub.high : detail.highTheme && detail.percent>0;
+}
+export function summarizeMappedIncidence(rows:readonly {id:number;details:readonly IncidenceDetail[]}[]) {
+ const officialIds=new Set<number>(), priorityIds=new Set<number>();
+ const themes=new Set<string>(), subtopics=new Set<string>(), highThemes=new Set<string>(), highSubtopics=new Set<string>();
+ for(const row of rows){
+  if(row.details.length)officialIds.add(row.id);
+  for(const d of row.details){
+   themes.add(d.key);
+   if(d.highTheme){highThemes.add(d.key);priorityIds.add(row.id);}
+   for(const s of d.subtopics){
+    subtopics.add(s.key);
+    if(isPrioritySubtopic(d,s)){highSubtopics.add(s.key);priorityIds.add(row.id);}
+   }
+  }
+ }
+ return {linkedTopics:officialIds.size,themes:themes.size,subtopics:subtopics.size,highThemes:highThemes.size,highSubtopics:highSubtopics.size,priorityTopics:priorityIds.size};
+}
+export function hasPriorityIncidence(details:readonly IncidenceDetail[]):boolean {
+ return details.some(d=>d.highTheme||d.subtopics.some(s=>isPrioritySubtopic(d,s)));
 }

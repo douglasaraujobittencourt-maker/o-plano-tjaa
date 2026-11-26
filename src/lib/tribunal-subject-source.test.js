@@ -116,7 +116,7 @@ test("cada edital tem ordem própria e todos os IDs oficiais permanecem presente
 });
 
 
-import {auditGoMatters,auditGoTopics,auditedVerbenaDetails,goMatterOrder,originFromDetails} from "./tjgo-edital-audit";
+import {auditGoMatters,auditGoTopics,auditedVerbenaDetails,goMatterOrder,originFromDetails,summarizeMappedIncidence,hasPriorityIncidence,isPrioritySubtopic} from "./tjgo-edital-audit";
 import {incidenceMaps} from "./incidence-data";
 test("auditoria TJGO preserva todos os 100 IDs oficiais e insere a referência sem duplicar progresso",()=>{
  const catalog=tribunalCatalog;
@@ -146,4 +146,20 @@ test("cada tema e subtópico Verbena aparece uma vez como registro, com percentu
  expect(originFromDetails(auditedVerbenaDetails(201,20109))).toBeNull();
  expect(originFromDetails(auditedVerbenaDetails(201,20101))).toBe("verbena");
  expect(auditedVerbenaDetails(201,20101)[0].subtopics[0].high).toBe(true);
+});
+
+
+test("Administração Pública separa 11 vínculos, 5 temas, 9 subtópicos e prioridade real",()=>{
+ const rows=auditGoTopics(201,tribunalCatalog,"bb").map(a=>({id:a.id,details:auditedVerbenaDetails(201,a.id)}));
+ expect(summarizeMappedIncidence(rows)).toEqual({linkedTopics:11,themes:5,subtopics:9,highThemes:1,highSubtopics:2,priorityTopics:3});
+ expect(rows.filter(r=>hasPriorityIncidence(r.details)).map(r=>r.id)).toEqual([20107,20101,20102]);
+ for(const id of [20108,20116,20104])expect(originFromDetails(auditedVerbenaDetails(201,id))).toBeNull();
+ for(const id of [20123,20111,20121]){
+  const detail=auditedVerbenaDetails(201,id)[0];
+  expect(detail.subtopics.length).toBeGreaterThan(0);
+  expect(detail.subtopics.every(s=>!s.high&&!isPrioritySubtopic(detail,s))).toBe(true);
+  expect(hasPriorityIncidence([detail])).toBe(false);
+ }
+ const duplicate=[...rows,...rows];
+ expect(summarizeMappedIncidence(duplicate)).toEqual(summarizeMappedIncidence(rows));
 });

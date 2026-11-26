@@ -13,13 +13,13 @@ import {bankTopicAllowed,bankTopicsForMatter} from "@/lib/bank-exams";
 import {getEditalCatalog} from "@/lib/edital-catalog";
 import {scopeLabel,topicOrderLabel} from "@/lib/tribunal-catalog";
 import {incidencePresentation,normalizeIncidenceTitle,type IncidenceOrigin} from "@/lib/edital-incidence";
-import {auditGoMatters,auditGoTopics,auditedTopicDetails,originFromDetails,goMatterOrder,type AuditTopic,type AuditDetail} from "@/lib/tjgo-edital-audit";
+import {auditGoMatters,auditGoTopics,auditedTopicDetails,originFromDetails,goMatterOrder,summarizeMappedIncidence,isPrioritySubtopic,hasPriorityIncidence,type AuditTopic,type AuditDetail} from "@/lib/tjgo-edital-audit";
 import {getEtapasAutomaticasEdital,etapaDoAssunto} from "@/lib/edital-auto-progress";
 export const Route=createFileRoute("/_authenticated/app/edital")({head:()=>({meta:[{title:"Edital Verticalizado — TJGO e TJDFT | O Plano"}]}),component:EditalPage});
 
 function IncidenceTag({origin}:{origin:IncidenceOrigin}){
  const marker=incidencePresentation[origin];
- return <span className={`inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold ${marker.badge}`} title="Incidência registrada nos levantamentos de provas cadastrados"><span aria-hidden="true">↗</span>{marker.label}</span>;
+ return <span className={`inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold ${marker.badge}`} title="Correspondência com o levantamento da banca; não significa alta incidência"><span aria-hidden="true">↗</span>{marker.label}</span>;
 }
 function PriorityButton({active,onToggle}:{active:boolean;onToggle:()=>void}){
  return <Button type="button" size="sm" variant={active?"default":"outline"} aria-pressed={active} onClick={onToggle}><TrendingUp aria-hidden="true" className="h-4 w-4"/> Maior incidência</Button>;
@@ -28,7 +28,8 @@ function TopicRow({id,title,scope,status,origin,details,highlight,note}:{id:numb
  const [priority,setPriority]=useState(false);
  const marker=origin?incidencePresentation[origin]:null;
  const hasChildren=details.some(d=>d.subtopics.length>0);
- const hasHigh=details.some(d=>d.subtopics.some(s=>s.high));
+ const hasHigh=details.some(d=>d.subtopics.some(s=>isPrioritySubtopic(d,s)));
+ const showPriority=priority||highlight;
  return <AccordionItem value={String(id)} role="listitem" className={`border-b-0 transition-colors ${highlight?"rounded-lg bg-primary/10 ring-1 ring-inset ring-primary/60 px-2":""}`}>
   <AccordionTrigger className="gap-2 py-3 hover:no-underline">
    <span className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-2 pr-1">
@@ -36,7 +37,7 @@ function TopicRow({id,title,scope,status,origin,details,highlight,note}:{id:numb
      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className={marker?`text-sm font-semibold ${marker.text}`:"text-sm font-normal"}>{title}</span>
       {origin&&<IncidenceTag origin={origin}/>}
-      {highlight&&<span className="inline-flex items-center gap-1 rounded-md border border-primary/60 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-foreground"><TrendingUp className="h-3 w-3" aria-hidden="true"/> Prioridade</span>}
+      {highlight&&<span className="inline-flex items-center gap-1 rounded-md border border-primary/60 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-foreground"><TrendingUp className="h-3 w-3" aria-hidden="true"/> Maior incidência</span>}
      </span>
      <Badge variant="outline" className="mt-1">{scope}</Badge>{note&&<span className="block text-xs text-muted-foreground mt-1">{note}</span>}
     </span>
@@ -49,18 +50,19 @@ function TopicRow({id,title,scope,status,origin,details,highlight,note}:{id:numb
     <PriorityButton active={priority} onToggle={()=>setPriority(v=>!v)}/>
    </div>
    {!hasChildren&&<p className="text-xs text-muted-foreground" role="status">{details.some(d=>d.relatedTopics?.length)?"Os subtópicos deste tema estão vinculados aos assuntos correspondentes indicados abaixo.":"Não há subtópicos com incidência mapeada para este assunto."}</p>}
-   {hasChildren&&priority&&<p className="text-xs text-muted-foreground" role="status">{hasHigh?"Destaque pelo maior peso cadastrado de cada banca. Sem percentual individual, a prioridade usa o percentual do tema (empates mantidos); não indica frequência individual.":"Não há subtópicos de alta incidência mapeados para este assunto."}</p>}
+   {hasChildren&&showPriority&&<p className="text-xs text-muted-foreground" role="status">{hasHigh?"Sem peso individual, o destaque indica vínculo ao tema de maior incidência da matéria (empates mantidos), não frequência individual.":"Este assunto tem incidência mapeada, mas não possui subtópico prioritário pelo critério do levantamento."}</p>}
    {details.map(detail=><div key={detail.key} className="rounded-md border bg-muted/20 p-3 space-y-2">
     <div className="flex flex-wrap items-center justify-between gap-2">
-     <span className="text-xs font-semibold">{detail.contextOnly?"Tema de origem: ":""}{detail.theme}</span>
-     <span className="flex flex-wrap items-center gap-2"><IncidenceTag origin={detail.bank}/><span className="text-xs tabular-nums text-muted-foreground">Tema: {detail.approximate?"≈ ":""}{detail.percent}%</span></span>
+     <span className="text-xs font-semibold">{detail.contextOnly?"Referência ao tema de origem: ":""}{detail.theme}</span>
+     <span className="flex flex-wrap items-center gap-2"><IncidenceTag origin={detail.bank}/><span className="text-xs tabular-nums text-muted-foreground">Percentual do tema: {detail.approximate?"≈ ":""}{detail.percent}%</span></span>
     </div>
     {!!detail.relatedTopics?.length&&<p className="text-xs text-muted-foreground">Subtópicos relacionados, exibidos sem duplicação em: {detail.relatedTopics.join("; ")}.</p>}
     {detail.subtopics.map(sub=>{
       const same=details.filter(d=>d.subtopics.some(s=>normalizeIncidenceTitle(s.title)===normalizeIncidenceTitle(sub.title)));
       const subOrigin=same.some(d=>d.bank==="verbena")&&same.some(d=>d.bank==="fgv")?"both":detail.bank;
-      return <div key={sub.key} className={`rounded-md border-l-2 p-2 transition-colors ${priority&&sub.high?"border-primary bg-primary/10 ring-1 ring-inset ring-primary/40":"border-border"}`}>
-       <div className="flex flex-wrap items-center gap-1.5"><span className={`text-sm font-semibold ${incidencePresentation[subOrigin].text}`}>{sub.title}</span><IncidenceTag origin={subOrigin}/>{priority&&sub.high&&<span className="text-xs font-semibold text-foreground">Prioridade</span>}</div>
+      const subPriority=showPriority&&isPrioritySubtopic(detail,sub);
+      return <div key={sub.key} className={`rounded-md border-l-2 p-2 transition-colors ${subPriority?"border-primary bg-primary/10 ring-1 ring-inset ring-primary/40":"border-border"}`}>
+       <div className="flex flex-wrap items-center gap-1.5"><span className={`text-sm font-semibold ${incidencePresentation[subOrigin].text}`}>{sub.title}</span><IncidenceTag origin={subOrigin}/>{subPriority&&<span className="rounded-md border border-primary/60 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-foreground">{sub.weight==null?"Tema de maior incidência":"Maior incidência individual"}</span>}</div>
        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{sub.description}</p>
        {(sub.percent!=null||sub.questions!=null)&&<p className="mt-1 text-xs tabular-nums text-muted-foreground">{sub.percent!=null?`${detail.approximate?"≈ ":""}${sub.percent}% do subtópico`:""}{sub.percent!=null&&sub.questions!=null?" · ":""}{sub.questions!=null?`${detail.approximate?"≈ ":""}${sub.questions} questões`:""}</p>}
       </div>;
@@ -91,6 +93,11 @@ function EditalPage(){
   <p className="text-xs text-muted-foreground">Referências históricas pré-edital. Leis revogadas e versões antigas constam para auditoria; estudar legislação vigente. A discursiva é um treino adicional, não conteúdo programático literal.</p></header>
   <BankExamSelector/>
   <p className="text-xs text-muted-foreground">{bank==="caixa"?topicOrderLabel(bank):"TJGO: disciplinas e assuntos na sequência do Anexo IV; complementos e personalizados ao final. Incidência conforme levantamento aproximado, não previsão de prova."}</p>
+  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-card p-3 text-xs text-muted-foreground" aria-label="Legenda de incidência">
+   <span className="flex flex-wrap items-center gap-2"><IncidenceTag origin="verbena"/> Correspondência com o levantamento (não significa alta incidência).</span>
+   <span className="inline-flex items-center gap-2"><span className="inline-flex items-center gap-1 rounded-md border border-primary/60 bg-primary/10 px-2 py-0.5 font-semibold text-foreground"><TrendingUp className="h-3 w-3" aria-hidden="true"/> Maior incidência</span> Prioridade ao ativar o botão.</span>
+   <span>Texto padrão: conteúdo sem incidência diretamente mapeada.</span>
+  </div>
   <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar matéria ou assunto..." aria-label="Buscar assuntos"/>
   <p className="text-sm text-muted-foreground">{new Set(groups.flatMap(g=>g.topics.map(a=>a.id))).size} assuntos distintos exibidos · referências compartilhadas com um único registro de progresso</p>
   {catalog.isPending&&<p>Carregando edital...</p>}{catalog.isError&&<p role="alert">Erro ao carregar o catálogo.</p>}
@@ -98,19 +105,24 @@ function EditalPage(){
   <Accordion type="multiple" className="space-y-3">
    {groups.map(({m,all,topics,progressRows})=>{const count=progressRows.filter(a=>etapaDoAssunto(progress.data??{},a.id)!=="Pendente").length;
     const priority=!!priorityByMatter[m.numero];
-    const rows=topics.map(a=>{const details=auditedTopicDetails(m.numero,a.id,m.titulo_central,a.topico_central,bank);return {a,details,origin:originFromDetails(details)};});
-    const hasHigh=rows.some(r=>r.details.some(d=>d.highTheme));
+    const allRows=all.map(a=>{const details=auditedTopicDetails(m.numero,a.id,m.titulo_central,a.topico_central,bank);return {a,details,origin:originFromDetails(details)};});
+    const shownIds=new Set(topics.map(a=>a.id));
+    const rows=allRows.filter(r=>shownIds.has(r.a.id));
+    const summary=summarizeMappedIncidence(allRows.map(r=>({id:r.a.id,details:r.details})));
     return <AccordionItem key={m.numero} value={String(m.numero)} className="rounded-xl border bg-card px-4">
      <AccordionTrigger className="hover:no-underline"><div className="w-full text-left pr-4">
      <div className="flex flex-wrap justify-between gap-2"><span className="font-semibold">{m.titulo_central}</span><span className="text-xs text-muted-foreground">{count}/{progressRows.length}</span></div>
      <div className="text-xs text-muted-foreground">{m.ciclo==="Ciclo 1"?"Ciclo inicial":"Fila de espera"} · {scopeLabel(m.escopo)}</div><Progress className="mt-2 h-1" value={progressRows.length?100*count/progressRows.length:0}/></div></AccordionTrigger>
      <AccordionContent>{!all.length&&<p className="text-xs text-muted-foreground py-2">Nenhum assunto cadastrado. Adicione assuntos em Bora Estudar.</p>}{m.numero===205&&<p className="text-xs text-muted-foreground py-2">A Constituição do Estado de Goiás aparece nas duas disciplinas do Anexo IV. A referência abaixo usa o mesmo ID e não cria outro registro de progresso.</p>}<div className="flex flex-wrap items-center gap-2 pb-3">
       <PriorityButton active={priority} onToggle={()=>setPriorityByMatter(old=>({...old,[m.numero]:!old[m.numero]}))}/>
-      {priority&&<p role="status" className="text-xs text-muted-foreground">{hasHigh?"Destaque dos assuntos vinculados ao tema de maior peso de cada banca.":"Não há subtópicos de alta incidência mapeados para esta matéria."}</p>}
-      {!priority&&!rows.some(r=>r.details.length)&&<p className="text-xs text-muted-foreground">Não há subtópicos de alta incidência mapeados para esta matéria.</p>}
+      <div className="w-full space-y-1 text-xs text-muted-foreground">
+       <p>{summary.linkedTopics} assuntos do edital vinculados · {summary.themes} temas · {summary.subtopics} subtópicos únicos nos levantamentos.</p>
+       {priority&&<p role="status">{summary.priorityTopics? `Prioridade: ${summary.highThemes} tema(s) de maior incidência · ${summary.highSubtopics} subtópico(s) prioritário(s) · ${summary.priorityTopics} assunto(s) vinculados em destaque. Sem percentual individual, a prioridade é herdada do tema, não uma frequência própria.`:"Não há incidência prioritária mapeada para esta matéria."}</p>}
+       {!priority&&!summary.linkedTopics&&<p>Não há incidência diretamente mapeada para esta matéria.</p>}
+      </div>
      </div>
      <Accordion type="multiple" role="list" className="divide-y divide-border/60">
-      {rows.map(({a,details,origin})=><TopicRow key={a.id} id={a.id} title={a.topico_central} scope={a.reference?"Referência oficial compartilhada":a.custom?"Personalizado":a.supplemental?`Complemento TJGO · ${scopeLabel(a.escopo)}`:scopeLabel(a.escopo)} note={a.missingRegistration?"Item oficial sem cadastro ativo nesta conta; histórico vinculado ao ID original.":a.originalTitle?"Título personalizado preservado no cadastro: "+a.originalTitle:a.reference?"Mesmo registro de Direito Constitucional.":a.supplemental?"Não é item expresso no programa TJGO de 2021.":undefined} status={progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)} origin={origin} details={details} highlight={priority&&details.some(d=>d.highTheme)}/>)}
+      {rows.map(({a,details,origin})=><TopicRow key={a.id} id={a.id} title={a.topico_central} scope={a.reference?"Referência oficial compartilhada":a.custom?"Personalizado":a.supplemental?`Complemento TJGO · ${scopeLabel(a.escopo)}`:scopeLabel(a.escopo)} note={a.missingRegistration?"Item oficial sem cadastro ativo nesta conta; histórico vinculado ao ID original.":a.originalTitle?"Título personalizado preservado no cadastro: "+a.originalTitle:a.reference?"Mesmo registro de Direito Constitucional.":a.supplemental?"Não é item expresso no programa TJGO de 2021.":undefined} status={progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)} origin={origin} details={details} highlight={priority&&hasPriorityIncidence(details)}/>)}
      </Accordion></AccordionContent>
     </AccordionItem>})}
   </Accordion>

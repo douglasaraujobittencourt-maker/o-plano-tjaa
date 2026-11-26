@@ -97,3 +97,20 @@ test("redistribuição conserva minutos inteiros, exclusão não recria vagas",(
  expect(()=>validateCycle([[]],new Set())).toThrow();
  expect(()=>validateCycle([],new Set())).not.toThrow();
 });
+
+import {officialTopicOrder,orderTribunalTopics,tribunalCatalog} from "./tribunal-catalog";
+test("cada edital tem ordem própria e todos os IDs oficiais permanecem presentes",()=>{
+ for(const matter of tribunalCatalog.materias){
+  for(const exam of ["bb","caixa"]){
+   const expected=tribunalCatalog.assuntos.filter(a=>a.materia_numero===matter.numero&&(exam==="bb"?a.escopo!=="Só Caixa":a.escopo!=="Só BB")).map(a=>a.id);
+   const ordered=officialTopicOrder(matter.numero,exam);
+   expect([...ordered].sort((a,b)=>a-b)).toEqual(expected.sort((a,b)=>a-b));
+  }
+ }
+ expect(topicsForSubject(portuguese,"bb").slice(0,3).map(t=>t.id)).toEqual([20201,20217,20218]);
+ expect(topicsForSubject(portuguese,"caixa").slice(0,3).map(t=>t.id)).toEqual([20230,20204,20201]);
+ expect(topicsForSubject({name:"Administração Pública"},"bb")[0].id).toBe(20107);
+ const rows=[{id:9999999},{id:20215},{id:20201},{id:8888888}];
+ expect(orderTribunalTopics(rows,202,"bb",r=>r.id).map(r=>r.id)).toEqual([20201,20215,9999999,8888888]);
+ expect(rows.map(r=>r.id)).toEqual([9999999,20215,20201,8888888]);
+});

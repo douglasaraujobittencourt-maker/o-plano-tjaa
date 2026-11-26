@@ -1,4 +1,5 @@
 import { incidenceMaps, type Banca, type Tribunal } from "./incidence-data";
+import { officialTopicOrder, tribunalCatalog } from "./tribunal-catalog";
 
 export type IncidenceOrigin = "verbena" | "fgv" | "both";
 type Maps = typeof incidenceMaps;
@@ -499,5 +500,66 @@ export function topicIncidenceDetails(subject: string, topic: string, maps: Maps
       }
     }
   }
-  return result.sort((a, b) => b.percent - a.percent || a.theme.localeCompare(b.theme, "pt-BR"));
+  return result.map(d=>({...d,subtopics:orderIncidenceItems(d.subtopics,subject,d.tribunal)})).sort((a,b)=> (a.tribunal===b.tribunal ? incidenceSyllabusRank(subject,a.theme,a.tribunal)-incidenceSyllabusRank(subject,b.theme,b.tribunal) : a.tribunal==="tjgo"?-1:1));
+}
+
+// Temas de incidência podem agrupar vários itens do edital: ordenar pelo primeiro
+// item correspondente, sem desmembrar percentuais. Sem correspondência, manter ao final.
+const goIncidenceAnchors: Record<string,Record<string,number>> = {
+  "Administração Pública": {
+    "Políticas Públicas": 11,
+    "Orçamento Público e Gestão por Processos": 3,
+    "Governabilidade vs. Governança": 14,
+    "Gestão por Processos e Indicadores": 4,
+    "Terceiro Setor e Formas de Parceria": 23
+  },
+  "Língua Portuguesa": {
+    "Análise Textual e Tese": 1,
+    "Classificação de Orações": 9,
+    "Morfossintaxe Aplicada": 5,
+    "Tipologia e Sequências Textuais": 4,
+    "Pontuação, Crase e Formação de Palavras": 15
+  },
+  "Direito Administrativo": {
+    "Princípios e Promoção Pessoal": 1,
+    "Direitos e Estabilidade": 4,
+    "Agentes de Contratação": 9,
+    "Modalidades e Benefícios": 9
+  },
+  "Direito Constitucional": {
+    "Princípios Fundamentais": 1,
+    "Remédios Constitucionais": 1,
+    "Regras de Funcionamento": 7,
+    "Súmulas Vinculantes": 7,
+    "Processo Legislativo Estadual": 13,
+    "Emenda à Constituição Estadual": 13
+  },
+  "História e Geografia de Goiás": {
+    "História de Goiás": 7,
+    "Século XIX e Estrutura Judiciária": 7,
+    "Século XX e Urbanismo": 4,
+    "Política e Sociedade": 7,
+    "Geografia e Economia Goiana": 1,
+    "Setor Sucroenergético": 6,
+    "Socioeconomia e Comunidades": 1
+  }
+};
+export function incidenceSyllabusRank(subject:string,title:string,tribunal:Tribunal):number {
+ const key=subjectKey(subject);
+ const matter=tribunalCatalog.materias.find(m=>subjectKey(m.titulo_central)===key);
+ if(!matter)return Infinity;
+ const exam=tribunal==="tjgo"?"bb":"caixa";
+ const order=officialTopicOrder(matter.numero,exam);
+ const norm=normalizeIncidenceTitle(title);
+ // Constituição do Estado de Goiás está vinculada em Constitucional no catálogo,
+ // mas aparece entre Resolução CNJ e Código de Organização no Anexo IV.
+ if(tribunal==="tjgo"&&matter.numero===205&&norm==="constituicao do estado de goias")return 2.5;
+ const explicit=tribunal==="tjgo"?goIncidenceAnchors[matter.titulo_central]?.[title]:undefined;
+ if(explicit!==undefined){const idx=order.indexOf(matter.numero*100+explicit);if(idx>=0)return idx;}
+ const candidates=tribunalCatalog.assuntos.filter(a=>a.materia_numero===matter.numero&&sourceMatches(key,title,normalizeIncidenceTitle(a.topico_central)));
+ const ranks=candidates.map(a=>order.indexOf(a.id)).filter(i=>i>=0);
+ return ranks.length?Math.min(...ranks):Infinity;
+}
+export function orderIncidenceItems<T extends {title:string}>(items:readonly T[],subject:string,tribunal:Tribunal):T[] {
+ return [...items].sort((a,b)=>incidenceSyllabusRank(subject,a.title,tribunal)-incidenceSyllabusRank(subject,b.title,tribunal));
 }

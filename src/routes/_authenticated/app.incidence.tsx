@@ -4,6 +4,7 @@ import { ChartBar, ChevronDown, BookOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { incidenceMaps, type Tribunal, type Banca, type Subject } from "@/lib/incidence-data";
+import { incidenceSyllabusRank, orderIncidenceItems } from "@/lib/edital-incidence";
 
 export const Route = createFileRoute("/_authenticated/app/incidence")({
   head: () => ({ meta: [{ title: "Mapa de Incidência — O Plano" }] }),
@@ -17,9 +18,9 @@ const banks: Record<Tribunal, { id: Banca; label: string }[]> = {
 };
 const format = (value: number) => value.toLocaleString("pt-BR");
 
-function SubjectCard({ subject, approximate }: { subject: Subject; approximate: boolean }) {
+function SubjectCard({ subject, approximate, tribunal }: { subject: Subject; approximate: boolean; tribunal: Tribunal }) {
   const prefix = approximate ? "≈ " : "";
-  const themes = [...subject.themes].sort((a, b) => b.percent - a.percent);
+  const themes = [...subject.themes].sort((a,b)=>Math.min(incidenceSyllabusRank(subject.name,a.title,tribunal),...a.subtopics.map(s=>incidenceSyllabusRank(subject.name,s.title,tribunal)))-Math.min(incidenceSyllabusRank(subject.name,b.title,tribunal),...b.subtopics.map(s=>incidenceSyllabusRank(subject.name,s.title,tribunal))));
   let accumulated = 0;
   return (
     <Card className="min-w-0 overflow-hidden p-4 sm:p-5 space-y-4">
@@ -58,7 +59,7 @@ function SubjectCard({ subject, approximate }: { subject: Subject; approximate: 
               </summary>
               <div className="space-y-3 border-t px-4 py-3 sm:px-6">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subtópicos</p>
-                {theme.subtopics.map(sub => (
+                {orderIncidenceItems(theme.subtopics,subject.name,tribunal).map(sub => (
                   <div key={sub.title} className="border-l-2 border-primary/60 pl-3">
                     <h3 className="text-sm font-semibold">{sub.title}</h3>
                     <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{sub.description}</p>
@@ -89,7 +90,7 @@ function IncidencePage() {
     <section className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6">
       <header className="md:pr-16">
         <h1 className="text-2xl font-bold tracking-tight">Mapa de Incidência</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Priorize o estudo teórico pelos assuntos mais cobrados em cada matéria.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Assuntos na ordem do edital selecionado; temas agrupados na primeira correspondência, extras ao final. Os percentuais de incidência continuam indicando a prioridade.</p>
       </header>
       <Card className="space-y-4 p-4">
         <div role="group" aria-label="Selecionar tribunal" className="space-y-2">
@@ -121,7 +122,7 @@ function IncidencePage() {
               <div className="col-span-2 rounded-lg bg-muted/50 p-3 sm:col-span-1"><p className="text-xl font-bold tabular-nums">{map.approximate ? "≈ " : ""}{format(subjects.reduce((sum,s) => sum+s.total,0))}</p><p className="text-xs text-muted-foreground">soma dos totais por matéria</p></div>
             </div>
           </Card>
-          {subjects.map(subject => <SubjectCard key={subject.name} subject={subject} approximate={map.approximate} />)}
+          {subjects.map(subject => <SubjectCard key={subject.name} subject={subject} approximate={map.approximate} tribunal={tribunal} />)}
         </div>
       ) : (
         <Card className="flex flex-col items-center gap-3 p-8 text-center" aria-live="polite">

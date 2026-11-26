@@ -70,3 +70,10 @@ test("Constituição de Goiás expande no item único de Direito Constitucional"
   expect(rows[0].theme).toBe("Constituição do Estado de Goiás");
   expect(rows[0].subtopics).toHaveLength(3);
 });
+
+import {orderIncidenceItems} from "./edital-incidence";
+test("temas do mapa respeitam a ordem do edital, preservando valores e extras",()=>{
+ const rows=[{title:"Código de Organização Judiciária de Goiás — COJ/GO",percent:15},{title:"Extra",percent:5},{title:"Constituição do Estado de Goiás",percent:30},{title:"Resolução CNJ nº 325/2020",percent:10},{title:"Regimento Interno do TJGO",percent:45}];
+ expect(orderIncidenceItems(rows,"Legislação Complementar","tjgo").map(r=>r.percent)).toEqual([45,10,30,15,5]);
+ expect(rows.map(r=>r.percent)).toEqual([15,5,30,10,45]);
+});

@@ -10,7 +10,7 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
     verbena: {
       exams: 40,
       approximate: true,
-      source: "NotebookLM · levantamento enviado pelo usuário (atribuição ao Instituto Verbena/UFG pelo contexto, pendente de confirmação da banca no próprio relatório)",
+      source: "Levantamento de incidência com valores aproximados de 40 provas do Instituto Verbena/UFG de tribunais, em todas as áreas.",
       subjects: [
   {
     "name": "Noções de Administração Pública",

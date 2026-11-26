@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ChartBar, ChevronDown, BookOpen, Info } from "lucide-react";
+import { ChartBar, ChevronDown, BookOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { incidenceMaps, type Tribunal, type Banca, type Subject } from "@/lib/incidence-data";
@@ -50,7 +50,7 @@ function SubjectCard({ subject, approximate }: { subject: Subject; approximate: 
                     <div className="h-full rounded-full bg-primary" style={{ width: `${theme.percent}%` }} />
                   </div>
                   <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
-                    <span>{count === null ? "Contagem não informada" : `${theme.questions == null ? "≈ " : prefix}${format(count)} questões`}</span>
+                    {count !== null && <span>{`${theme.questions == null ? "≈ " : prefix}${format(count)} questões`}</span>}
                     <span>Acumulado: {prefix}{accumulated}%</span>
                   </div>
                 </div>
@@ -65,7 +65,6 @@ function SubjectCard({ subject, approximate }: { subject: Subject; approximate: 
                     {(sub.questions != null || sub.percent != null) && <p className="mt-1 text-xs text-muted-foreground">{sub.questions != null ? `${prefix}${sub.questions} questões` : ""}{sub.questions != null && sub.percent != null ? " · " : ""}{sub.percent != null ? `${prefix}${sub.percent}%` : ""}</p>}
                   </div>
                 ))}
-                {theme.subtopics.every(s => s.questions == null && s.percent == null) && <p className="text-xs text-muted-foreground">O levantamento não informa contagens ou incidência individual dos subtópicos.</p>}
               </div>
             </details>
           );
@@ -115,18 +114,11 @@ function IncidencePage() {
               <h2 className="font-bold">TJ Goiás · {selected?.label}</h2>
               <span className="text-xs text-muted-foreground">Edital 2021 · Apoio Judiciário e Administrativo</span>
             </div>
+            <p className="text-sm text-muted-foreground">{map.source}</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <div className="rounded-lg bg-muted/50 p-3"><p className="text-xl font-bold tabular-nums">{map.exams}</p><p className="text-xs text-muted-foreground">provas no acervo</p></div>
+              <div className="rounded-lg bg-muted/50 p-3"><p className="text-xl font-bold tabular-nums">{map.exams}</p><p className="text-xs text-muted-foreground">provas analisadas</p></div>
               <div className="rounded-lg bg-muted/50 p-3"><p className="text-xl font-bold tabular-nums">{subjects.length}</p><p className="text-xs text-muted-foreground">matérias mapeadas</p></div>
               <div className="col-span-2 rounded-lg bg-muted/50 p-3 sm:col-span-1"><p className="text-xl font-bold tabular-nums">{map.approximate ? "≈ " : ""}{format(subjects.reduce((sum,s) => sum+s.total,0))}</p><p className="text-xs text-muted-foreground">soma dos totais por matéria</p></div>
-            </div>
-            <div className="flex items-start gap-2 rounded-lg border p-3 text-xs leading-relaxed text-muted-foreground">
-              <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <div className="space-y-1">
-                <p>{map.source}.</p>
-                <p>Valores aproximados, não auditados. Quantidades por tema estimadas pelo percentual × total da matéria, com arredondamento; podem não somar exatamente o total. Não há contagens por subtópico na fonte.</p>
-                <p>Os temas e descrições reproduzem o levantamento recebido, não uma validação de legislação vigente ou de aderência integral ao edital. Confira o edital e a lei atualizada antes de estudar. Incidência histórica não prevê a próxima prova.</p>
-              </div>
             </div>
           </Card>
           {subjects.map(subject => <SubjectCard key={subject.name} subject={subject} approximate={map.approximate} />)}

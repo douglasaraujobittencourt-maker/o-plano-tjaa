@@ -11,6 +11,7 @@ import {BankExamSelector,useBankExam} from "@/components/bank-exam-provider";
 import {bankTopicAllowed} from "@/lib/bank-exams";
 import {getEditalCatalog} from "@/lib/edital-catalog";
 import {scopeLabel} from "@/lib/tribunal-catalog";
+import {incidenceOrigin,incidencePresentation} from "@/lib/edital-incidence";
 import {getEtapasAutomaticasEdital,etapaDoAssunto} from "@/lib/edital-auto-progress";
 export const Route=createFileRoute("/_authenticated/app/edital")({head:()=>({meta:[{title:"Edital Verticalizado — TJGO e TJDFT | O Plano"}]}),component:EditalPage});
 function EditalPage(){
@@ -40,9 +41,9 @@ function EditalPage(){
      <AccordionTrigger className="hover:no-underline"><div className="w-full text-left pr-4">
      <div className="flex flex-wrap justify-between gap-2"><span className="font-semibold">{m.titulo_central}</span><span className="text-xs text-muted-foreground">{count}/{all.length}</span></div>
      <div className="text-xs text-muted-foreground">{m.ciclo==="Ciclo 1"?"Ciclo inicial":"Fila de espera"} · {scopeLabel(m.escopo)}</div><Progress className="mt-2 h-1" value={all.length?100*count/all.length:0}/></div></AccordionTrigger>
-     <AccordionContent>{!all.length&&<p className="text-xs text-muted-foreground py-2">Nenhum assunto cadastrado. Adicione assuntos em Bora Estudar.</p>}{m.numero===205&&<p className="text-xs text-muted-foreground py-2">A Constituição do Estado de Goiás, também exigida nesta disciplina, está vinculada uma única vez em Direito Constitucional.</p>}<ul className="divide-y divide-border/60">{topics.map(a=><li key={a.id} className="py-3 flex flex-wrap justify-between gap-2">
-      <div className="flex-1 min-w-[180px]"><p className="text-sm">{a.topico_central}</p><Badge variant="outline" className="mt-1">{scopeLabel(a.escopo)}</Badge></div>
-      <span className="text-xs text-muted-foreground">{progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)}</span></li>)}</ul></AccordionContent>
+     <AccordionContent>{!all.length&&<p className="text-xs text-muted-foreground py-2">Nenhum assunto cadastrado. Adicione assuntos em Bora Estudar.</p>}{m.numero===205&&<p className="text-xs text-muted-foreground py-2">A Constituição do Estado de Goiás, também exigida nesta disciplina, está vinculada uma única vez em Direito Constitucional.</p>}<ul className="divide-y divide-border/60">{topics.map(a=>{const origin=incidenceOrigin(m.titulo_central,a.topico_central);const marker=origin?incidencePresentation[origin]:null;return <li key={a.id} className="py-3 flex flex-wrap justify-between gap-2">
+      <div className="flex-1 min-w-[180px]"><div className="flex flex-wrap items-center gap-x-2 gap-y-1"><p className={marker?`text-sm font-semibold ${marker.text}`:"text-sm"}>{a.topico_central}</p>{marker&&<span className={`inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold ${marker.badge}`} title="Incidência registrada nos levantamentos de provas cadastrados"><span aria-hidden="true">↗</span>{marker.label}</span>}</div><Badge variant="outline" className="mt-1">{scopeLabel(a.escopo)}</Badge></div>
+      <span className="text-xs text-muted-foreground">{progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)}</span></li>})}</ul></AccordionContent>
     </AccordionItem>})}
   </Accordion>
   {!catalog.isPending&&!groups.length&&<Card className="p-4 text-sm text-muted-foreground">Nenhum assunto encontrado.</Card>}

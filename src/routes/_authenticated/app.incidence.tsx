@@ -4,6 +4,7 @@ import { ChartBar, ChevronDown, BookOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { incidenceMaps, type Tribunal, type Banca, type Subject } from "@/lib/incidence-data";
+import { tribunalGroups } from "@/lib/tribunal-catalog";
 
 export const Route = createFileRoute("/_authenticated/app/incidence")({
   head: () => ({ meta: [{ title: "Mapa de Incidência — O Plano" }] }),
@@ -17,10 +18,25 @@ const banks: Record<Tribunal, { id: Banca; label: string }[]> = {
 };
 const format = (value: number) => value.toLocaleString("pt-BR");
 
+// Ordenação exclusiva desta tela: pontos do edital, depois número de questões
+// da prova e, por último, volume do levantamento. Não modifica a fonte compartilhada.
+const subjectKey = (name: string) => name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/^nocoes de /, "").replace(/\s*\(.*\)\s*$/, "").trim();
+function rankSubjects(subjects: readonly Subject[], tribunal: Tribunal): Subject[] {
+  const weight = (subject: Subject) => tribunal === "tjgo"
+    ? tribunalGroups.find(group => subjectKey(group.name) === subjectKey(subject.name))
+    : undefined;
+  return [...subjects].sort((a, b) => {
+    const wa = weight(a), wb = weight(b);
+    return (wb?.points ?? -1) - (wa?.points ?? -1)
+      || (wb?.questions ?? -1) - (wa?.questions ?? -1)
+      || b.total - a.total;
+  });
+}
+
 function SubjectCard({ subject, approximate, number }: { subject: Subject; approximate: boolean; number: number }) {
   const prefix = approximate ? "≈ " : "";
-  // O levantamento possui sua própria sequência editorial, independente do edital verticalizado.
-  const themes = subject.themes;
+  // Empates conservam a ordem do levantamento; os subtópicos não mudam de tema.
+  const themes = [...subject.themes].sort((a, b) => b.percent - a.percent);
   let accumulated = 0;
   return (
     <Card className="min-w-0 overflow-hidden p-4 sm:p-5 space-y-4">
@@ -87,12 +103,12 @@ function IncidencePage() {
   const available = banks[tribunal];
   const selected = available.find(item => item.id === bank) ?? available[0];
   const map = selected ? incidenceMaps[tribunal]?.[selected.id] : undefined;
-  const subjects = map?.subjects ?? [];
+  const subjects = rankSubjects(map?.subjects ?? [], tribunal);
   return (
     <section className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6">
       <header className="md:pr-16">
         <h1 className="text-2xl font-bold tracking-tight">Mapa de Incidência</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Levantamento de incidência por matéria, tema e subtópico. Valores aproximados, conforme a fonte indicada abaixo.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Matérias por pontuação no edital do TJGO (desempate por questões da prova e volume do levantamento); temas por incidência decrescente. Valores aproximados, conforme a fonte indicada abaixo.</p>
       </header>
       <Card className="space-y-4 p-4">
         <div role="group" aria-label="Selecionar tribunal" className="space-y-2">

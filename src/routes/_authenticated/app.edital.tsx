@@ -115,7 +115,7 @@ function EditalPage(){
        {!priority&&!summary.linkedTopics&&<p>Não há incidência diretamente mapeada para esta matéria.</p>}
       </div>
      </div>
-     <Accordion type="multiple" role="list" className="divide-y divide-border/60">
+     <Accordion key={`${m.numero}-${bank}`} type="multiple" defaultValue={allRows.filter(r=>r.details.some(d=>d.subtopics.length>0)).map(r=>String(r.a.id))} role="list" className="divide-y divide-border/60">
       {rows.map(({a,details,origin})=><TopicRow key={a.id} id={a.id} title={a.topico_central} scope={a.reference?"Referência oficial compartilhada":a.custom?"Personalizado":a.supplemental?`Complemento TJGO · ${scopeLabel(a.escopo)}`:scopeLabel(a.escopo)} note={a.missingRegistration?"Item oficial sem cadastro ativo nesta conta; histórico vinculado ao ID original.":a.originalTitle?"Título personalizado preservado no cadastro: "+a.originalTitle:a.reference?"Mesmo registro de Direito Constitucional.":a.supplemental?"Não é item expresso no programa TJGO de 2021.":undefined} status={progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)} origin={origin} details={details} highlight={priority&&hasPriorityIncidence(details)}/>)}
      </Accordion></AccordionContent>
     </AccordionItem>})}

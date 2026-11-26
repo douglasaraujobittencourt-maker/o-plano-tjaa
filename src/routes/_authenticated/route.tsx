@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, useRouter, useLocation, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/external-client";
-import { LayoutDashboard, Clock, Layers, Brain, TrendingUp, BookOpenCheck, Settings2, LogOut, Menu, Repeat, FileSearch } from "lucide-react";
+import { LayoutDashboard, Clock, Layers, Brain, TrendingUp, BookOpenCheck, Settings2, LogOut, Menu, Repeat, FileSearch, ChartBar } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProfile } from "@/lib/planner-api";
 import { UserAvatar } from "@/components/user-avatar";
@@ -38,6 +38,7 @@ const NAV = [
   { to: "/app/errors", label: "Caderno de Erros", icon: Layers },
   { to: "/app/edital", label: "Edital Verticalizado", icon: BookOpenCheck },
   { to: "/app/importance", label: "Raio-X do Edital", icon: FileSearch },
+  { to: "/app/incidence", label: "Mapa de Incidência", icon: ChartBar },
   { to: "/app/performance", label: "Desempenho", icon: TrendingUp },
   { to: "/app/settings", label: "Configurações", icon: Settings2 },
 ] as const;

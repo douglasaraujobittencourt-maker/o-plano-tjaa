@@ -19,6 +19,7 @@ import { Route as AuthenticatedAppErrorsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAppFlashcardsRouteImport } from './routes/_authenticated/app.flashcards'
 import { Route as AuthenticatedAppHoursRouteImport } from './routes/_authenticated/app.hours'
 import { Route as AuthenticatedAppImportanceRouteImport } from './routes/_authenticated/app.importance'
+import { Route as AuthenticatedAppIncidenceRouteImport } from './routes/_authenticated/app.incidence'
 import { Route as AuthenticatedAppPdfBatteriesRouteImport } from './routes/_authenticated/app.pdf-batteries'
 import { Route as AuthenticatedAppPerformanceRouteImport } from './routes/_authenticated/app.performance'
 import { Route as AuthenticatedAppReviewsRouteImport } from './routes/_authenticated/app.reviews'
@@ -76,6 +77,12 @@ const AuthenticatedAppImportanceRoute =
     path: '/app/importance',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAppIncidenceRoute =
+  AuthenticatedAppIncidenceRouteImport.update({
+    id: '/app/incidence',
+    path: '/app/incidence',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppPdfBatteriesRoute =
   AuthenticatedAppPdfBatteriesRouteImport.update({
     id: '/app/pdf-batteries',
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/app/flashcards': typeof AuthenticatedAppFlashcardsRoute
   '/app/hours': typeof AuthenticatedAppHoursRoute
   '/app/importance': typeof AuthenticatedAppImportanceRoute
+  '/app/incidence': typeof AuthenticatedAppIncidenceRoute
   '/app/pdf-batteries': typeof AuthenticatedAppPdfBatteriesRoute
   '/app/performance': typeof AuthenticatedAppPerformanceRoute
   '/app/reviews': typeof AuthenticatedAppReviewsRoute
@@ -130,6 +138,7 @@ export interface FileRoutesByTo {
   '/app/flashcards': typeof AuthenticatedAppFlashcardsRoute
   '/app/hours': typeof AuthenticatedAppHoursRoute
   '/app/importance': typeof AuthenticatedAppImportanceRoute
+  '/app/incidence': typeof AuthenticatedAppIncidenceRoute
   '/app/pdf-batteries': typeof AuthenticatedAppPdfBatteriesRoute
   '/app/performance': typeof AuthenticatedAppPerformanceRoute
   '/app/reviews': typeof AuthenticatedAppReviewsRoute
@@ -148,6 +157,7 @@ export interface FileRoutesById {
   '/_authenticated/app/flashcards': typeof AuthenticatedAppFlashcardsRoute
   '/_authenticated/app/hours': typeof AuthenticatedAppHoursRoute
   '/_authenticated/app/importance': typeof AuthenticatedAppImportanceRoute
+  '/_authenticated/app/incidence': typeof AuthenticatedAppIncidenceRoute
   '/_authenticated/app/pdf-batteries': typeof AuthenticatedAppPdfBatteriesRoute
   '/_authenticated/app/performance': typeof AuthenticatedAppPerformanceRoute
   '/_authenticated/app/reviews': typeof AuthenticatedAppReviewsRoute
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/app/flashcards'
     | '/app/hours'
     | '/app/importance'
+    | '/app/incidence'
     | '/app/pdf-batteries'
     | '/app/performance'
     | '/app/reviews'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/app/flashcards'
     | '/app/hours'
     | '/app/importance'
+    | '/app/incidence'
     | '/app/pdf-batteries'
     | '/app/performance'
     | '/app/reviews'
@@ -199,6 +211,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/flashcards'
     | '/_authenticated/app/hours'
     | '/_authenticated/app/importance'
+    | '/_authenticated/app/incidence'
     | '/_authenticated/app/pdf-batteries'
     | '/_authenticated/app/performance'
     | '/_authenticated/app/reviews'
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppImportanceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/app/incidence': {
+      id: '/_authenticated/app/incidence'
+      path: '/app/incidence'
+      fullPath: '/app/incidence'
+      preLoaderRoute: typeof AuthenticatedAppIncidenceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/app/pdf-batteries': {
       id: '/_authenticated/app/pdf-batteries'
       path: '/app/pdf-batteries'
@@ -330,6 +350,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppFlashcardsRoute: typeof AuthenticatedAppFlashcardsRoute
   AuthenticatedAppHoursRoute: typeof AuthenticatedAppHoursRoute
   AuthenticatedAppImportanceRoute: typeof AuthenticatedAppImportanceRoute
+  AuthenticatedAppIncidenceRoute: typeof AuthenticatedAppIncidenceRoute
   AuthenticatedAppPdfBatteriesRoute: typeof AuthenticatedAppPdfBatteriesRoute
   AuthenticatedAppPerformanceRoute: typeof AuthenticatedAppPerformanceRoute
   AuthenticatedAppReviewsRoute: typeof AuthenticatedAppReviewsRoute
@@ -345,6 +366,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppFlashcardsRoute: AuthenticatedAppFlashcardsRoute,
   AuthenticatedAppHoursRoute: AuthenticatedAppHoursRoute,
   AuthenticatedAppImportanceRoute: AuthenticatedAppImportanceRoute,
+  AuthenticatedAppIncidenceRoute: AuthenticatedAppIncidenceRoute,
   AuthenticatedAppPdfBatteriesRoute: AuthenticatedAppPdfBatteriesRoute,
   AuthenticatedAppPerformanceRoute: AuthenticatedAppPerformanceRoute,
   AuthenticatedAppReviewsRoute: AuthenticatedAppReviewsRoute,

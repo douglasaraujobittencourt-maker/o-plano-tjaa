@@ -10,12 +10,12 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
     verbena: {
       exams: 40,
       approximate: true,
-      source: "Levantamento de incidência com valores aproximados de 40 provas do Instituto Verbena/UFG de tribunais, em todas as áreas.",
+      source: "Análise e levantamento dos valores aproximados de 40 provas realizadas pelo Instituto Verbena de tribunais em todas as áreas.",
       subjects: [
   {
     "name": "Noções de Administração Pública",
     "total": 145,
-    "note": "Presente na prova oficial do TJGO (37.pdf, 18 questões), Administrador (30.pdf), Analista de Negócios (1.pdf) e demais cadernos de gestão.",
+    "note": "Questões nas 40 provas.",
     "themes": [
       {
         "title": "Paradigmas e Modelos da Gestão Pública",
@@ -37,7 +37,7 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
         "subtopics": [
           {
             "title": "Organizações Sociais (OS — Lei nº 9.637/1998)",
-            "description": "Qualificação privativa pelo Poder Executivo, Contrato de Gestão e Publicização (transferência de serviços não exclusivos ao setor público não estatal)."
+            "description": "Qualificação privativa pelo Poder Executivo, celebração do Contrato de Gestão e processo de Publicização (transferência de serviços não exclusivos ao setor público não estatal)."
           },
           {
             "title": "OSCIPs (Lei nº 9.790/1999)",
@@ -88,7 +88,7 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
   {
     "name": "Legislação Complementar (TJGO e Estado de Goiás)",
     "total": 65,
-    "note": "Questões específicas de legislação de Goiás (37.pdf, 36.pdf, 16.pdf e 12.pdf).",
+    "note": "Questões específicas de legislação de Goiás.",
     "themes": [
       {
         "title": "Regimento Interno do TJGO",
@@ -151,7 +151,7 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
   {
     "name": "Língua Portuguesa",
     "total": 460,
-    "note": "Matéria presente em todas as 40 provas do acervo, segundo o levantamento.",
+    "note": "Questões nas 40 provas.",
     "themes": [
       {
         "title": "Compreensão, Interpretação e Recursos Argumentativos",
@@ -201,7 +201,7 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
           },
           {
             "title": "Crase e Morfologia",
-            "description": "Marcação do acento grave indicativo de crase, regras de acentuação e análise de radicais (ex.: sufixo -metria em Jurimetria)."
+            "description": "Marcação do acento grave indicativo de crase, regras de acentuação e análise de radicais (ex.: sufixo -metria em \"Jurimetria\")."
           }
         ]
       }
@@ -210,7 +210,7 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
   {
     "name": "Noções de Direito Administrativo",
     "total": 280,
-    "note": "Cadernos jurídicos, administrativos e legislação geral.",
+    "note": "Questões nas 40 provas.",
     "themes": [
       {
         "title": "Princípios e Atos Administrativos",
@@ -277,7 +277,7 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
   {
     "name": "Noções de Direito Constitucional",
     "total": 220,
-    "note": "Cadernos jurídicos e de legislação.",
+    "note": "Questões nas 40 provas.",
     "themes": [
       {
         "title": "Direitos e Garantias Fundamentais — Art. 5º da CF",
@@ -332,7 +332,7 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
   {
     "name": "História e Geografia de Goiás",
     "total": 25,
-    "note": "Questões específicas de Goiás (37.pdf, 36.pdf e 16.pdf).",
+    "note": "Questões específicas de Goiás.",
     "themes": [
       {
         "title": "História de Goiás",

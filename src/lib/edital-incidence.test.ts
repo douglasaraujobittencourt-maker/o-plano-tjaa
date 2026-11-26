@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { buildIncidenceIndex, incidenceOrigin, incidencePresentation } from "./edital-incidence";
+import { buildIncidenceIndex, incidenceOrigin, incidencePresentation, topicIncidenceDetails } from "./edital-incidence";
 import { incidenceMaps } from "./incidence-data";
 
 test("assuntos principais e subtópicos equivalentes recebem a origem real", () => {
@@ -31,4 +31,42 @@ test("FGV e ambas aparecem automaticamente quando houver dados, sem duplicar eti
 test("equivalência não cria incidência se a banca não tiver o tema de origem", () => {
   const index = buildIncidenceIndex({});
   expect(incidenceOrigin("Direito Administrativo", "Atos administrativos", index)).toBeNull();
+});
+
+
+test("expansão retorna subtópicos correspondentes e preserva pesos no nível correto", () => {
+  const models = topicIncidenceDetails("Administração Pública", "Paradigmas da Administração Pública e reformas administrativas");
+  expect(models).toHaveLength(1);
+  expect(models[0].percent).toBe(25);
+  expect(models[0].highTheme).toBe(true);
+  expect(models[0].subtopics).toHaveLength(2);
+  expect(models[0].subtopics.every(s => s.high && s.percent === undefined)).toBe(true);
+  const bureaucratic = topicIncidenceDetails("Administração Pública", "Administração pública burocrática (Weber)");
+  expect(bureaucratic[0].subtopics.map(s => s.title)).toEqual(["Modelo Burocrático Weberiano"]);
+  expect(topicIncidenceDetails("Administração Pública", "Inovação no setor público")).toEqual([]);
+  const policies = topicIncidenceDetails("Administração Pública", "Processo das políticas públicas");
+  expect(policies[0].highTheme).toBe(false);
+  expect(policies[0].subtopics[0].high).toBe(true);
+});
+test("prioridade interna usa peso individual quando existe e mantém empates", () => {
+  const fgv = { exams: 1, approximate: false, source: "teste", subjects: [{ name: "Língua Portuguesa", total: 10, note: "", themes: [
+    { title: "Pontuação", percent: 60, subtopics: [
+      { title: "Vírgula", description: "", percent: 30 },
+      { title: "Dois-pontos", description: "", questions: 3 },
+      { title: "Ponto e vírgula", description: "", percent: 10 },
+      { title: "Sem peso", description: "" },
+      { title: "Sem ocorrência", description: "", percent: 0 },
+    ] },
+    { title: "Ortografia oficial", percent: 40, subtopics: [] },
+  ] }] };
+  const details = topicIncidenceDetails("Língua Portuguesa", "Pontuação", { tjgo: { ...incidenceMaps.tjgo, fgv } });
+  const result = details.find(d => d.bank === "fgv")!;
+  expect(result.subtopics.filter(s => s.high).map(s => s.title)).toEqual(["Vírgula","Dois-pontos"]);
+  expect(result.subtopics.some(s => s.title === "Sem ocorrência")).toBe(false);
+  expect(details.some(d => d.bank === "verbena")).toBe(true);
+});
+test("Constituição de Goiás expande no item único de Direito Constitucional", () => {
+  const rows = topicIncidenceDetails("Direito Constitucional", "Constituição do Estado de Goiás (também em Legislação Complementar)");
+  expect(rows[0].theme).toBe("Constituição do Estado de Goiás");
+  expect(rows[0].subtopics).toHaveLength(3);
 });

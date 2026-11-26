@@ -1,4 +1,4 @@
-import { incidenceMaps, type Banca } from "./incidence-data";
+import { incidenceMaps, type Banca, type Tribunal } from "./incidence-data";
 
 export type IncidenceOrigin = "verbena" | "fgv" | "both";
 type Maps = typeof incidenceMaps;
@@ -420,3 +420,84 @@ export const incidencePresentation: Record<IncidenceOrigin, { label: string; tex
     badge: "border-violet-400 bg-violet-100 text-violet-950 dark:border-violet-500 dark:bg-violet-950 dark:text-violet-200",
   },
 };
+
+
+// Read-only details for the vertical syllabus. A theme's percentage is never
+// represented as an individual subtopic's percentage.
+export type IncidenceDetail = {
+  key: string;
+  bank: Banca;
+  tribunal: Tribunal;
+  theme: string;
+  percent: number;
+  approximate: boolean;
+  highTheme: boolean;
+  subtopics: {
+    key: string;
+    title: string;
+    description: string;
+    percent?: number;
+    questions?: number;
+    high: boolean;
+    weight: number | null;
+  }[];
+};
+
+function sourceMatches(discipline: string, source: string, target: string): boolean {
+  const normalized = normalizeIncidenceTitle(source);
+  return normalized === target || (aliasIndex.get(discipline)?.get(normalized) ?? []).includes(target);
+}
+
+export function topicIncidenceDetails(subject: string, topic: string, maps: Maps = incidenceMaps): IncidenceDetail[] {
+  const discipline = subjectKey(subject);
+  const target = normalizeIncidenceTitle(topic);
+  const result: IncidenceDetail[] = [];
+  for (const tribunal of ["tjgo", "tjdft"] as const) {
+    for (const bank of ["verbena", "fgv"] as const) {
+      const map = maps[tribunal]?.[bank];
+      if (!map) continue;
+      for (const sourceSubject of map.subjects) {
+        const sourceKey = subjectKey(sourceSubject.name);
+        const constitutionBridge = discipline === "direito constitucional" && sourceKey === "legislacao complementar";
+        if (sourceKey !== discipline && !constitutionBridge) continue;
+        const maxTheme = Math.max(0, ...sourceSubject.themes.map(t => t.percent));
+        for (const theme of sourceSubject.themes) {
+          if (theme.percent <= 0) continue;
+          if (constitutionBridge && normalizeIncidenceTitle(theme.title) !== "constituicao do estado de goias") continue;
+          const themeMatch = sourceMatches(sourceKey, theme.title, target);
+          const eligible = theme.subtopics.filter(s => s.percent !== 0 && s.questions !== 0);
+          const children = themeMatch ? eligible : eligible.filter(s => sourceMatches(sourceKey, s.title, target));
+          if (!themeMatch && !children.length) continue;
+          const key = `${tribunal}:${bank}:${sourceKey}:${normalizeIncidenceTitle(theme.title)}`;
+          result.push({
+            key, bank, tribunal, theme: theme.title, percent: theme.percent,
+            approximate: map.approximate, highTheme: theme.percent === maxTheme,
+            subtopics: children.map(s => ({
+              key: `${key}:${normalizeIncidenceTitle(s.title)}`,
+              title: s.title, description: s.description, percent: s.percent, questions: s.questions,
+              weight: s.percent ?? (s.questions != null && sourceSubject.total > 0 ? 100 * s.questions / sourceSubject.total : null),
+              high: false,
+            })),
+          });
+        }
+      }
+    }
+  }
+  // Within this syllabus topic, compare independently per bank and tribunal.
+  // Prefer actual child weights; if none exist, use the greatest parent-theme
+  // weight among mapped children. Keep ties and never invent individual weights.
+  for (const tribunal of ["tjgo", "tjdft"] as const) {
+    for (const bank of ["verbena", "fgv"] as const) {
+      const details = result.filter(d => d.bank === bank && d.tribunal === tribunal && d.subtopics.length);
+      const explicit = details.flatMap(d => d.subtopics).filter(s => s.weight != null);
+      if (explicit.length) {
+        const max = Math.max(...explicit.map(s => s.weight!));
+        for (const d of details) for (const s of d.subtopics) s.high = max > 0 && s.weight === max;
+      } else {
+        const max = Math.max(0, ...details.map(d => d.percent));
+        for (const d of details) for (const s of d.subtopics) s.high = max > 0 && d.percent === max;
+      }
+    }
+  }
+  return result.sort((a, b) => b.percent - a.percent || a.theme.localeCompare(b.theme, "pt-BR"));
+}

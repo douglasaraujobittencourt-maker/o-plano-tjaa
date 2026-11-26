@@ -114,3 +114,36 @@ test("cada edital tem ordem própria e todos os IDs oficiais permanecem presente
  expect(orderTribunalTopics(rows,202,"bb",r=>r.id).map(r=>r.id)).toEqual([20201,20215,9999999,8888888]);
  expect(rows.map(r=>r.id)).toEqual([9999999,20215,20201,8888888]);
 });
+
+
+import {auditGoMatters,auditGoTopics,auditedVerbenaDetails,goMatterOrder,originFromDetails} from "./tjgo-edital-audit";
+import {incidenceMaps} from "./incidence-data";
+test("auditoria TJGO preserva todos os 100 IDs oficiais e insere a referência sem duplicar progresso",()=>{
+ const catalog=tribunalCatalog;
+ expect(auditGoMatters(catalog,"bb").slice(0,6).map(m=>m.numero)).toEqual([...goMatterOrder]);
+ const rows=goMatterOrder.flatMap(m=>auditGoTopics(m,catalog,"bb"));
+ const officialRows=rows.filter(r=>!r.supplemental&&!r.reference);
+ expect(officialRows.length).toBe(100);
+ expect(new Set(officialRows.map(r=>r.id)).size).toBe(100);
+ expect(auditGoTopics(205,catalog,"bb").map(r=>r.id)).toEqual([20501,20502,20503,20413,20504]);
+ expect(auditGoTopics(203,catalog,"bb").filter(r=>r.supplemental).map(r=>r.id)).toEqual([20325,20326]);
+ expect(auditGoTopics(202,catalog,"bb").filter(r=>!r.supplemental).at(-1).topico_central).toBe("Norma e uso");
+ const expected=tribunalCatalog.assuntos.filter(a=>goMatterOrder.includes(a.materia_numero)&&a.escopo!=="Só Caixa").map(a=>a.id).sort((a,b)=>a-b);
+ expect(officialRows.map(r=>r.id).sort((a,b)=>a-b)).toEqual(expected);
+});
+test("cada tema e subtópico Verbena aparece uma vez como registro, com percentuais originais",()=>{
+ const rows=goMatterOrder.flatMap(m=>auditGoTopics(m,tribunalCatalog,"bb").map(a=>({m,a})));
+ const details=rows.flatMap(({m,a})=>auditedVerbenaDetails(m,a.id));
+ const owners=details.filter(d=>!d.contextOnly);
+ const children=details.flatMap(d=>d.subtopics);
+ const expected=incidenceMaps.tjgo.verbena.subjects.flatMap(s=>s.themes.map(t=>({key:"tjgo:verbena:"+s.name+":"+t.title,percent:t.percent,children:t.subtopics.map(x=>({key:"tjgo:verbena:"+s.name+":"+t.title+":"+x.title,description:x.description}))})));
+ expect(owners.length).toBe(23);
+ expect(children.length).toBe(44);
+ expect(new Set(children.map(s=>s.key)).size).toBe(44);
+ expect(owners.map(d=>[d.key,d.percent]).sort()).toEqual(expected.map(d=>[d.key,d.percent]).sort());
+ expect(children.map(s=>[s.key,s.description]).sort()).toEqual(expected.flatMap(d=>d.children.map(s=>[s.key,s.description])).sort());
+ expect(children.every(s=>s.percent===undefined&&s.weight===null)).toBe(true);
+ expect(originFromDetails(auditedVerbenaDetails(201,20109))).toBeNull();
+ expect(originFromDetails(auditedVerbenaDetails(201,20101))).toBe("verbena");
+ expect(auditedVerbenaDetails(201,20101)[0].subtopics[0].high).toBe(true);
+});

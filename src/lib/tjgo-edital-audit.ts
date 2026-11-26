@@ -254,7 +254,7 @@ export const verbenaLinks: Record<string,Record<string,Link>> = {
     }
   }
 };
-export type AuditDetail = IncidenceDetail & { contextOnly?:boolean };
+export type AuditDetail = IncidenceDetail & { contextOnly?:boolean; relatedTopics?:string[] };
 export function auditedVerbenaDetails(matter:number,id:number):AuditDetail[]{
  const map=incidenceMaps.tjgo?.verbena;
  if(!map)return [];
@@ -272,6 +272,7 @@ export function auditedVerbenaDetails(matter:number,id:number):AuditDetail[]{
    const key="tjgo:verbena:"+subject.name+":"+theme.title;
    result.push({key,bank:"verbena",tribunal:"tjgo",theme:theme.title,percent:theme.percent,approximate:map.approximate,
     highTheme:theme.percent===Math.max(...subject.themes.map(t=>t.percent)),contextOnly:link.owner!==id,
+    relatedTopics:[...new Set(theme.subtopics.filter(s=>link.children[s.title]!==id).map(s=>{const target=link.children[s.title];return titles[target]??official.get(target)?.topico_central??"";}).filter(Boolean))],
     subtopics:children.map(s=>({key:key+":"+s.title,title:s.title,description:s.description,percent:s.percent,questions:s.questions,weight:s.percent??(s.questions!=null&&subject.total>0?100*s.questions/subject.total:null),high:false}))});
   }
  }
@@ -284,7 +285,10 @@ export function auditedTopicDetails(matter:number,id:number,subject:string,title
  if(bank==="caixa")return topicIncidenceDetails(subject,title);
  // Mantém suporte às outras fontes cadastradas, sem duplicar o levantamento auditado.
  const other={...incidenceMaps,tjgo:{...incidenceMaps.tjgo,verbena:undefined}};
- return [...auditedVerbenaDetails(matter,id),...topicIncidenceDetails(subject,title,other)];
+ const original=official.get(id)?.topico_central??title;
+ const secondary=[...topicIncidenceDetails(subject,original,other),...(original!==title?topicIncidenceDetails(subject,title,other):[])];
+ const distinct=new Map(secondary.map(d=>[d.key,d]));
+ return [...auditedVerbenaDetails(matter,id),...distinct.values()];
 }
 export function originFromDetails(details:readonly IncidenceDetail[]):IncidenceOrigin|null{
  const v=details.some(d=>d.bank==="verbena"),f=details.some(d=>d.bank==="fgv");

@@ -48,13 +48,14 @@ function TopicRow({id,title,scope,status,origin,details,highlight,note}:{id:numb
     <span className="text-xs font-semibold text-muted-foreground">Subtópicos do mapa de incidência</span>
     <PriorityButton active={priority} onToggle={()=>setPriority(v=>!v)}/>
    </div>
-   {!hasChildren&&<p className="text-xs text-muted-foreground" role="status">Não há subtópicos com incidência mapeada para este assunto.</p>}
+   {!hasChildren&&<p className="text-xs text-muted-foreground" role="status">{details.some(d=>d.relatedTopics?.length)?"Os subtópicos deste tema estão vinculados aos assuntos correspondentes indicados abaixo.":"Não há subtópicos com incidência mapeada para este assunto."}</p>}
    {hasChildren&&priority&&<p className="text-xs text-muted-foreground" role="status">{hasHigh?"Destaque pelo maior peso cadastrado de cada banca. Sem percentual individual, a prioridade usa o percentual do tema (empates mantidos); não indica frequência individual.":"Não há subtópicos de alta incidência mapeados para este assunto."}</p>}
    {details.map(detail=><div key={detail.key} className="rounded-md border bg-muted/20 p-3 space-y-2">
     <div className="flex flex-wrap items-center justify-between gap-2">
      <span className="text-xs font-semibold">{detail.contextOnly?"Tema de origem: ":""}{detail.theme}</span>
      <span className="flex flex-wrap items-center gap-2"><IncidenceTag origin={detail.bank}/><span className="text-xs tabular-nums text-muted-foreground">Tema: {detail.approximate?"≈ ":""}{detail.percent}%</span></span>
     </div>
+    {!!detail.relatedTopics?.length&&<p className="text-xs text-muted-foreground">Subtópicos relacionados, exibidos sem duplicação em: {detail.relatedTopics.join("; ")}.</p>}
     {detail.subtopics.map(sub=>{
       const same=details.filter(d=>d.subtopics.some(s=>normalizeIncidenceTitle(s.title)===normalizeIncidenceTitle(sub.title)));
       const subOrigin=same.some(d=>d.bank==="verbena")&&same.some(d=>d.bank==="fgv")?"both":detail.bank;
@@ -91,7 +92,7 @@ function EditalPage(){
   <BankExamSelector/>
   <p className="text-xs text-muted-foreground">{bank==="caixa"?topicOrderLabel(bank):"TJGO: disciplinas e assuntos na sequência do Anexo IV; complementos e personalizados ao final. Incidência conforme levantamento aproximado, não previsão de prova."}</p>
   <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar matéria ou assunto..." aria-label="Buscar assuntos"/>
-  <p className="text-sm text-muted-foreground">{groups.reduce((n,g)=>n+g.topics.length,0)} assuntos exibidos · tópicos comuns com um único registro de progresso</p>
+  <p className="text-sm text-muted-foreground">{new Set(groups.flatMap(g=>g.topics.map(a=>a.id))).size} assuntos distintos exibidos · referências compartilhadas com um único registro de progresso</p>
   {catalog.isPending&&<p>Carregando edital...</p>}{catalog.isError&&<p role="alert">Erro ao carregar o catálogo.</p>}
   {progress.isError&&<p role="alert" className="text-destructive text-sm">Não foi possível carregar o progresso. {String(progress.error)}</p>}
   <Accordion type="multiple" className="space-y-3">
@@ -109,7 +110,7 @@ function EditalPage(){
       {!priority&&!rows.some(r=>r.details.length)&&<p className="text-xs text-muted-foreground">Não há subtópicos de alta incidência mapeados para esta matéria.</p>}
      </div>
      <Accordion type="multiple" role="list" className="divide-y divide-border/60">
-      {rows.map(({a,details,origin})=><TopicRow key={a.id} id={a.id} title={a.topico_central} scope={a.reference?"Referência oficial compartilhada":a.custom?"Personalizado":a.supplemental?"Complemento — fora da sequência TJGO":scopeLabel(a.escopo)} note={a.missingRegistration?"Item oficial sem cadastro ativo nesta conta; histórico vinculado ao ID original.":a.originalTitle?"Título personalizado preservado no cadastro: "+a.originalTitle:a.reference?"Mesmo registro de Direito Constitucional.":a.supplemental?"Não é item expresso no programa TJGO de 2021.":undefined} status={progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)} origin={origin} details={details} highlight={priority&&details.some(d=>d.highTheme)}/>)}
+      {rows.map(({a,details,origin})=><TopicRow key={a.id} id={a.id} title={a.topico_central} scope={a.reference?"Referência oficial compartilhada":a.custom?"Personalizado":a.supplemental?`Complemento TJGO · ${scopeLabel(a.escopo)}`:scopeLabel(a.escopo)} note={a.missingRegistration?"Item oficial sem cadastro ativo nesta conta; histórico vinculado ao ID original.":a.originalTitle?"Título personalizado preservado no cadastro: "+a.originalTitle:a.reference?"Mesmo registro de Direito Constitucional.":a.supplemental?"Não é item expresso no programa TJGO de 2021.":undefined} status={progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)} origin={origin} details={details} highlight={priority&&details.some(d=>d.highTheme)}/>)}
      </Accordion></AccordionContent>
     </AccordionItem>})}
   </Accordion>

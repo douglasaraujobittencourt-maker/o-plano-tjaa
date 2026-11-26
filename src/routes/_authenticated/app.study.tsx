@@ -2,7 +2,8 @@ import { localDateStr, addDaysStr } from "@/lib/dates";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubjects, getTodaySessions, logSession, updateSession, deleteSession, finalizeLesson, createSubject, markEditalTopicsStudied, announcePlannerProgress } from "@/lib/planner-api";
-import {selectPlannerSubjects,topicsForSubject,isWritingSubject,subjectMatchesExam} from "@/lib/tribunal-subject-source";
+import {selectPlannerSubjects,topicsForSubject,isWritingSubject,subjectMatchesExam,subjectDefinition} from "@/lib/tribunal-subject-source";
+import {orderTribunalTopics,topicOrderLabel} from "@/lib/tribunal-catalog";
 import {ProgressTribunalDots,ProgressTribunalLegend} from "@/components/tribunal-progress-colors";
 import {TribunalTopicEditor} from "@/components/tribunal-topic-editor";
 import {getEditableCycle} from "@/lib/editable-cycle-api";
@@ -144,7 +145,8 @@ function StudyPage() {
   // Edit / delete sessions
   type EditState = { id: string; subject_id: string; topicId: string; originalTopicId: string; kind: "leitura"|"video"|"questoes"|"redacao"; minutes: number; pages_read: number; questions_done: number; questions_correct: number; notes: string };
   const [editSession, setEditSession] = useState<EditState | null>(null);
-  const editTopics = topicsForSubject(subjects.find(s => s.id === editSession?.subject_id), "bnb");
+  const editingSubject=subjects.find(s => s.id === editSession?.subject_id);
+  const editTopics = orderTribunalTopics(topicsForSubject(editingSubject, "bnb"),editingSubject?subjectDefinition(editingSubject)?.number??-1:-1,bank,t=>t.id);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
 
   const updateSess = useMutation({
@@ -283,7 +285,7 @@ function StudyPage() {
             <SelectContent>{assuntosDoEdital.map(a=><SelectItem key={a.id} value={String(a.id)}>{a.topico_central} · {scopeLabel(a.escopo)}</SelectItem>)}</SelectContent>
           </Select>
           {selectedSubject&&!assuntosDoEdital.length&&<p className="text-xs text-muted-foreground">Cadastre um assunto antes de registrar a sessão.</p>}
-          <p className="text-xs text-muted-foreground">Assuntos filtrados pela matéria e pelo tribunal ativo, na mesma base dos quadros de PDFs e videoaulas.</p>
+          <p className="text-xs text-muted-foreground">Assuntos filtrados pela matéria e pelo tribunal ativo. {topicOrderLabel(bank)}</p>
         </div>
         {selectedSubject&&<TribunalTopicEditor open={editingTopics} onOpenChange={setEditingTopics} subject={selectedSubject}/>}
         <div>

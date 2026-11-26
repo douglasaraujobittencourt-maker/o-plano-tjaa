@@ -9,9 +9,9 @@ import {Input} from "@/components/ui/input";
 import {Progress} from "@/components/ui/progress";
 import {Accordion,AccordionItem,AccordionTrigger,AccordionContent} from "@/components/ui/accordion";
 import {BankExamSelector,useBankExam} from "@/components/bank-exam-provider";
-import {bankTopicAllowed} from "@/lib/bank-exams";
+import {bankTopicAllowed,bankTopicsForMatter} from "@/lib/bank-exams";
 import {getEditalCatalog} from "@/lib/edital-catalog";
-import {scopeLabel} from "@/lib/tribunal-catalog";
+import {scopeLabel,topicOrderLabel} from "@/lib/tribunal-catalog";
 import {incidenceOrigin,incidencePresentation,topicIncidenceDetails,normalizeIncidenceTitle,type IncidenceOrigin,type IncidenceDetail} from "@/lib/edital-incidence";
 import {getEtapasAutomaticasEdital,etapaDoAssunto} from "@/lib/edital-auto-progress";
 export const Route=createFileRoute("/_authenticated/app/edital")({head:()=>({meta:[{title:"Edital Verticalizado — TJGO e TJDFT | O Plano"}]}),component:EditalPage});
@@ -76,7 +76,7 @@ function EditalPage(){
  const normalize=(s:string)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
  const query=normalize(search.trim());
  const groups=(catalog.data?.materias??[]).map(m=>{
-  const all=(catalog.data?.assuntos??[]).filter(a=>a.materia_numero===m.numero&&bankTopicAllowed(a,bank));
+  const all=bankTopicsForMatter(m.numero,bank,catalog.data);
   const topics=all.filter(a=>!query||normalize(m.titulo_central+" "+a.topico_central).includes(query));
   return {m,all,topics};
  }).filter(g=>g.topics.length||(!query&&bankTopicAllowed(g.m,bank)&&!(catalog.data?.assuntos??[]).some(a=>a.materia_numero===g.m.numero)));
@@ -85,6 +85,7 @@ function EditalPage(){
   <p className="text-sm text-muted-foreground">TJGO 2021 · Analista — Apoio Judiciário e Administrativo (prioridade) | TJDFT 2022 · Técnico — Área Administrativa.</p>
   <p className="text-xs text-muted-foreground">Referências históricas pré-edital. Leis revogadas e versões antigas constam para auditoria; estudar legislação vigente. A discursiva é um treino adicional, não conteúdo programático literal.</p></header>
   <BankExamSelector/>
+  <p className="text-xs text-muted-foreground">{topicOrderLabel(bank)}</p>
   <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar matéria ou assunto..." aria-label="Buscar assuntos"/>
   <p className="text-sm text-muted-foreground">{groups.reduce((n,g)=>n+g.topics.length,0)} assuntos exibidos · tópicos comuns com um único registro de progresso</p>
   {catalog.isPending&&<p>Carregando edital...</p>}{catalog.isError&&<p role="alert">Erro ao carregar o catálogo.</p>}

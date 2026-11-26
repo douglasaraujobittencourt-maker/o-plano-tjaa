@@ -46,7 +46,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
-import { topicsForSubject } from "@/lib/tribunal-subject-source";
+import { topicsForSubject, subjectDefinition } from "@/lib/tribunal-subject-source";
+import { orderTribunalTopics } from "@/lib/tribunal-catalog";
+import { useBankExam } from "@/components/bank-exam-provider";
 
 export const Route = createFileRoute("/_authenticated/app/reviews")({
   head: () => ({
@@ -65,6 +67,7 @@ export const Route = createFileRoute("/_authenticated/app/reviews")({
 const MAX_SELECT = 2;
 
 function ReviewsPage() {
+  const {bank}=useBankExam();
   const qc = useQueryClient();
   const today = localDateStr();
 
@@ -188,7 +191,8 @@ function ReviewsPage() {
   }>({ open: false, subjectId: "", subjectName: "" });
 
   const [quickTopic, setQuickTopic] = useState("none");
-  const quickTopics = topicsForSubject(subjects.find(s => s.id === quickQuestionModal.subjectId), "bnb");
+  const quickSubject=subjects.find(s => s.id === quickQuestionModal.subjectId);
+  const quickTopics = orderTribunalTopics(topicsForSubject(quickSubject, "bnb"),quickSubject?subjectDefinition(quickSubject)?.number??-1:-1,bank,t=>t.id);
   const [quickDone, setQuickDone] = useState("20");
   const [quickCorrect, setQuickCorrect] = useState("18");
   const [quickMinutes, setQuickMinutes] = useState("30");

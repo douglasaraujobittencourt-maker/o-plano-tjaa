@@ -58,3 +58,193 @@ export const isTribunalSubject=(name:string)=>tribunalSubjectNames.has(name);
 export const tribunalInitialSlots=[
  [201,1.5],[204,.5],[203,1],[202,1],[201,1.5],[204,.5],[203,1],[202,1],[201,1],[204,1],[203,.5],[202,.5],[214,1]
 ] as const;
+
+// Ordem de apresentação independente dos IDs históricos: Anexo IV TJGO 02/2021
+// (AJAA) e Anexo I TJDFT 01/2022 (Técnico Administrativo).
+// Índices originais (1-based), nunca novas chaves de assuntos.
+export type TribunalOrder = "bb" | "caixa" | "bnb";
+const editalPositions: Partial<Record<number, Record<"bb"|"caixa", readonly number[]>>> = {
+  "201": {
+    "bb": [
+      7,
+      1,
+      8,
+      2,
+      9,
+      10,
+      11,
+      12,
+      3,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      4,
+      19,
+      20,
+      21,
+      22,
+      5,
+      23
+    ],
+    "caixa": [
+      6,
+      24,
+      1,
+      2,
+      25,
+      4,
+      3
+    ]
+  },
+  "202": {
+    "bb": [
+      1,
+      17,
+      18,
+      2,
+      3,
+      19,
+      20,
+      4,
+      21,
+      22,
+      23,
+      6,
+      15,
+      24,
+      9,
+      25,
+      8,
+      10,
+      11,
+      26,
+      5,
+      12,
+      27,
+      13,
+      28,
+      14,
+      16,
+      29
+    ],
+    "caixa": [
+      30,
+      4,
+      1,
+      2,
+      31,
+      8,
+      5,
+      12,
+      32,
+      33,
+      9,
+      10,
+      34,
+      11,
+      6,
+      7,
+      3,
+      13,
+      14,
+      35,
+      15,
+      36,
+      16
+    ]
+  },
+  "203": {
+    "bb": [
+      1,
+      10,
+      2,
+      3,
+      11,
+      12,
+      7,
+      13,
+      8,
+      9,
+      14,
+      5,
+      15,
+      4,
+      16,
+      6,
+      17
+    ],
+    "caixa": [
+      18,
+      2,
+      1,
+      19,
+      20,
+      4,
+      21,
+      5,
+      22,
+      23,
+      3,
+      6,
+      24,
+      25,
+      26,
+      7,
+      8,
+      27,
+      9,
+      28
+    ]
+  },
+  "204": {
+    "bb": [
+      1,
+      8,
+      2,
+      9,
+      3,
+      4,
+      10,
+      5,
+      11,
+      6,
+      12,
+      13,
+      14,
+      7,
+      15
+    ],
+    "caixa": [
+      16,
+      5,
+      1,
+      2,
+      3,
+      4,
+      17,
+      18,
+      6,
+      7,
+      19,
+      20,
+      21
+    ]
+  }
+};
+export function officialTopicOrder(matter: number, exam: "bb"|"caixa"): number[] {
+ const explicit=editalPositions[matter]?.[exam];
+ if(explicit)return explicit.map(n=>matter*100+n);
+ return tribunalCatalog.assuntos.filter(a=>a.materia_numero===matter&&(exam==="bb"?a.escopo!=="Só Caixa":a.escopo!=="Só BB")).map(a=>a.id);
+}
+export function orderTribunalTopics<T>(items: readonly T[], matter: number, focus: TribunalOrder, id: (item:T)=>number|null): T[] {
+ const first=focus==="caixa"?"caixa":"bb";
+ const ids=[...new Set([...officialTopicOrder(matter,first),...officialTopicOrder(matter,first==="bb"?"caixa":"bb")])];
+ const rank=new Map(ids.map((key,i)=>[key,i]));
+ return [...items].sort((a,b)=>(rank.get(id(a)??-1)??Infinity)-(rank.get(id(b)??-1)??Infinity));
+}
+export function topicOrderLabel(focus:TribunalOrder):string {
+ return focus==="caixa"?"Ordem do edital TJDFT; demais assuntos ao final.":focus==="bb"?"Ordem do edital TJGO; demais assuntos ao final.":"Ordem TJGO, seguida dos assuntos exclusivos do TJDFT; personalizados ao final.";
+}

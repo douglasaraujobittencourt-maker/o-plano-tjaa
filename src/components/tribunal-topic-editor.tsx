@@ -6,9 +6,11 @@ import {Input} from "@/components/ui/input";
 import {Button} from "@/components/ui/button";
 import {changeTribunalTopic,tribunalTopicError,type Subject} from "@/lib/planner-api";
 import {subjectDefinition,scopeOptions,type TopicScope} from "@/lib/tribunal-subject-source";
-import {scopeLabel} from "@/lib/tribunal-catalog";
+import {scopeLabel,orderTribunalTopics,topicOrderLabel} from "@/lib/tribunal-catalog";
+import {useBankExam} from "@/components/bank-exam-provider";
 export function TribunalTopicEditor({subject,open,onOpenChange}:{subject:Subject;open:boolean;onOpenChange:(v:boolean)=>void}){
  const qc=useQueryClient();
+ const {bank}=useBankExam();
  const [id,setId]=useState<number|undefined>();
  const [title,setTitle]=useState("");
  const options=scopeOptions(subject);
@@ -39,10 +41,10 @@ export function TribunalTopicEditor({subject,open,onOpenChange}:{subject:Subject
   requestAnimationFrame(()=>{inputRef.current?.scrollIntoView({block:"center",behavior:"smooth"});inputRef.current?.focus({preventScroll:true});});
  };
  return <Dialog open={open} onOpenChange={v=>{if(!busy)onOpenChange(v);}}><DialogContent className="max-h-[85dvh] overflow-y-auto"><DialogHeader><DialogTitle>Assuntos · {subject.name}</DialogTitle></DialogHeader>
- <p className="text-xs text-muted-foreground">Alterações valem para sua conta. Registros antigos permanecem no histórico.</p>
+ <p className="text-xs text-muted-foreground">Alterações valem para sua conta. Registros antigos permanecem no histórico. {topicOrderLabel(bank)}</p>
  {error&&<p role="alert" className="rounded-md border border-destructive/40 p-2 text-sm text-destructive">{error}</p>}
  <div className="space-y-2">
- {definition?.topics.map(t=><div key={t.id} className="flex items-center justify-between gap-2 border-b py-2">
+ {definition&&orderTribunalTopics(definition.topics,definition.number,bank,t=>t.id).map(t=><div key={t.id} className="flex items-center justify-between gap-2 border-b py-2">
  <div className="min-w-0 text-sm">{t.title}<div className="text-xs text-muted-foreground">{scopeLabel(t.scope)}</div></div>
  <div className="flex gap-1"><Button type="button" variant="ghost" size="sm" disabled={busy} onClick={()=>startEdit(t)}>Editar</Button>
  <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={()=>{if(window.confirm("Excluir este assunto da lista? Sessões e revisões já registradas serão preservadas."))void save(t.id);}}>Excluir</Button></div></div>)}

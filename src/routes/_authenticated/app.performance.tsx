@@ -13,7 +13,9 @@ import { idCanonicoAssunto } from "@/lib/edital-topic-equivalence";
 import { sumStudyMinutes, studyMinutesBy } from "@/lib/study-metrics";
 import { ProgressTribunalDots, ProgressTribunalLegend } from "@/components/tribunal-progress-colors";
 import { performanceFilters, performanceTribunalLabel, visiblePerformanceRows, type PerformanceFilter, type PerformanceSort } from "@/lib/individual-performance";
-import { isWritingSubject, topicsForSubject } from "@/lib/tribunal-subject-source";
+import { isWritingSubject, topicsForSubject, subjectDefinition } from "@/lib/tribunal-subject-source";
+import { orderTribunalTopics, topicOrderLabel } from "@/lib/tribunal-catalog";
+import { useBankExam } from "@/components/bank-exam-provider";
 import {
   BarChart,
   Bar,
@@ -44,6 +46,7 @@ export const Route = createFileRoute("/_authenticated/app/performance")({
 });
 
 function PerformancePage() {
+  const {bank}=useBankExam();
   const today = localDateStr();
   const from = addDaysStr(-29);
   const now = new Date();
@@ -101,7 +104,8 @@ function PerformancePage() {
     };
   });
 
-  const visibleStats=visiblePerformanceRows(subjectStats,subjectFilter,subjectSort);
+  const topicFocus=subjectFilter==="go"?"bb":subjectFilter==="df"?"caixa":bank;
+  const visibleStats=visiblePerformanceRows(subjectStats,subjectFilter,subjectSort).map(row=>({...row,topicStats:orderTribunalTopics(row.topicStats,subjectDefinition(row)?.number??-1,topicFocus,t=>t.id)}));
 
   // Totais gerais com base no filtro
   const totalHours = +(sumStudyMinutes(activeSessions) / 60).toFixed(1);
@@ -239,7 +243,7 @@ function PerformancePage() {
         </div>
 
         <ProgressTribunalLegend />
-        <p className="text-xs text-muted-foreground">Clique na seta ao lado de uma matéria para consultar o desempenho de todos os seus assuntos.</p>
+        <p className="text-xs text-muted-foreground">Clique na seta ao lado de uma matéria para consultar o desempenho de todos os seus assuntos. {topicOrderLabel(topicFocus)}</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div role="group" aria-label="Filtrar matérias" className="flex flex-wrap gap-1.5">
             {performanceFilters.map(filter=><button key={filter.value} type="button"

@@ -1,6 +1,6 @@
 import type { Catalog, Assunto } from "@/lib/edital-caixa-bb-data";
 import type { BnbCatalog } from "@/lib/edital-bnb-data";
-import { tribunalCatalog } from "@/lib/tribunal-catalog";
+import { tribunalCatalog, orderTribunalTopics } from "@/lib/tribunal-catalog";
 // IDs legados somente para compatibilidade com componentes existentes.
 export type BankExam = "bb" | "caixa" | "bnb";
 export const BANK_LABELS:Record<BankExam,string>={bb:"TJGO",caixa:"TJDFT",bnb:"TJGO + TJDFT"};
@@ -16,7 +16,7 @@ export function bankMatterNumbers(bank:BankExam,catalog:Catalog|undefined,_bnb?:
  return (catalog?.materias??[]).filter(m=>bankMatterAllowed(m.numero,m.escopo,bank)).map(m=>m.numero);
 }
 export function bankTopicsForMatter(numero:number,bank:BankExam,catalog:Catalog|undefined,_bnb?:BnbCatalog):Assunto[]{
- return (catalog?.assuntos??[]).filter(a=>a.materia_numero===numero&&bankTopicAllowed(a,bank));
+ return orderTribunalTopics((catalog?.assuntos??[]).filter(a=>a.materia_numero===numero&&bankTopicAllowed(a,bank)),numero,bank,a=>a.id);
 }
 export function subjectTopicIds(name:string,bank:BankExam,catalog:Catalog|undefined,_bnb?:BnbCatalog):number[]{
  const id=subjectMatterNumber(name,bank);return id===null?[]:bankTopicsForMatter(id,bank,catalog).map(a=>a.id);

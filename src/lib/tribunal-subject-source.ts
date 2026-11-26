@@ -1,6 +1,6 @@
 import type {BankExam} from "./bank-exams";
 import type {Assunto,Catalog} from "./edital-caixa-bb-data";
-import {tribunalCatalog} from "./tribunal-catalog";
+import {tribunalCatalog,orderTribunalTopics} from "./tribunal-catalog";
 export const PROGRESS_TRIBUNAL_LEGEND={
  goBasic:{label:"TJ Goiás — Conhecimentos Básicos",color:"#28A745"},
  goSpecific:{label:"TJ Goiás — Conhecimentos Específicos",color:"#EACB00"},
@@ -96,7 +96,7 @@ export function selectPlannerSubjects<T extends SubjectRef>(subjects:readonly T[
 export const isWritingSubject=(s:SubjectRef)=>subjectDefinition(s)?.categories.includes("writing")??false;
 export function topicsForSubject(s:SubjectRef|undefined,bank:BankExam):Assunto[]{
  const d=s&&subjectDefinition(s);if(!d||d.archived||!s||!subjectMatchesExam(s,bank))return [];
- return d.topics.filter(t=>bank==="bnb"||(bank==="bb"?t.scope!=="Só Caixa":t.scope!=="Só BB")).map((t,i)=>({id:t.id,materia_numero:d.number,ciclo:"",escopo:t.scope,bloco_ordem:"",topico_central:t.title,nomenclatura_bb:t.scope==="Só Caixa"?"—":t.title,nomenclatura_caixa:t.scope==="Só BB"?"—":t.title,ordem_exibicao:i}));
+ return orderTribunalTopics(d.topics.filter(t=>bank==="bnb"||(bank==="bb"?t.scope!=="Só Caixa":t.scope!=="Só BB")),d.number,bank,t=>t.id).map((t,i)=>({id:t.id,materia_numero:d.number,ciclo:"",escopo:t.scope,bloco_ordem:"",topico_central:t.title,nomenclatura_bb:t.scope==="Só Caixa"?"—":t.title,nomenclatura_caixa:t.scope==="Só BB"?"—":t.title,ordem_exibicao:i}));
 }
 export function catalogFromSubjects(subjects:readonly SubjectRef[]):Catalog{
  const active=selectPlannerSubjects(subjects,"bnb");

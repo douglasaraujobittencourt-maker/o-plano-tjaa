@@ -24,7 +24,7 @@ function EditalPage(){
  .filter(g=>bank!=="bb"||cleanGoNames[g.m.numero]!==undefined)
  .map(g=>{
   const name=bank!=="caixa"?(cleanGoNames[g.m.numero]??g.m.titulo_central):g.m.titulo_central;
-  const topics=g.all.map(a=>{const literal=bank!=="caixa"?cleanGoTitle(g.m.numero,a.id):undefined;return {...a,displayTitle:literal??a.topico_central,continuation:literal!==undefined&&cleanGoContinuation.has(a.id)};})
+  const topics=g.all.map(a=>{const literal=bank!=="caixa"?cleanGoTitle(g.m.numero,a.id):undefined;return {...a,displayTitle:(literal??a.topico_central).replace(/^\p{Ll}/u,initial=>initial.toLocaleUpperCase("pt-BR")),continuation:literal!==undefined&&cleanGoContinuation.has(a.id)};})
    .filter(a=>!query||normalize(name+" "+a.displayTitle+" "+a.topico_central).includes(query));
   return {...g,m:{...g.m,titulo_central:name},topics};
  }).filter(g=>g.topics.length>0);

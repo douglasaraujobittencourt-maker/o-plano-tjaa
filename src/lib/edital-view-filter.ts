@@ -72,6 +72,9 @@ export function strictMarkedDetails(matter:number,topic:AuditTopic,details:reado
    // Outras fontes: correspondência literal normalizada até haver vínculos explícitos.
    return exactTitles.has(normalizeIncidenceTitle(theme.title))||exactTitles.has(normalizeIncidenceTitle(entry.title));
   });
-  return children.length?[{...d,subtopics:children}]:[];
+  // Administração Pública: os cinco temas expressamente solicitados também
+  // recebem etiqueta na sua âncora oficial, mesmo quando os filhos ficam em outra linha.
+  const explicitAdminTheme=matter===201&&d.tribunal==="tjgo"&&d.bank==="verbena"&&link?.owner===topic.id;
+  return children.length||explicitAdminTheme?[{...d,subtopics:children}]:[];
  });
 }

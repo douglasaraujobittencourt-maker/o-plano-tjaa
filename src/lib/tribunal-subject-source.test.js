@@ -192,9 +192,18 @@ test("grifos do edital exigem subtópico direto no mapa da mesma matéria e banc
  const groups=filteredEditalGroups(tribunalCatalog,"bb");
  const ap=groups.find(g=>g.m.numero===201);
  const marked=ap.all.filter(a=>strictMarkedDetails(201,a,filteredEditalDetails(201,a,ap.m.titulo_central,"bb")).length);
- expect(marked.map(a=>a.id).sort((a,b)=>a-b)).toEqual([20101,20102,20111,20113,20115,20121,20122,20123]);
+ expect(marked.map(a=>a.id).sort((a,b)=>a-b)).toEqual([20101,20102,20103,20107,20111,20113,20114,20115,20121,20122,20123]);
  const counts=marked.flatMap(a=>strictMarkedDetails(201,a,filteredEditalDetails(201,a,ap.m.titulo_central,"bb")).flatMap(d=>d.subtopics));
  expect(counts.length).toBe(9);
+ const markedThemes=marked.flatMap(a=>strictMarkedDetails(201,a,filteredEditalDetails(201,a,ap.m.titulo_central,"bb")).filter(d=>!d.contextOnly));
+ expect(markedThemes.length).toBe(5);
+ expect(markedThemes.map(d=>d.percent).sort((a,b)=>b-a)).toEqual([25,22,20,20,13]);
+ expect(new Set(counts.map(s=>s.key)).size).toBe(9);
+ expect(new Set(markedThemes.map(d=>d.key)).size).toBe(5);
+ for(const id of [20104,20108,20109,20110,20116]){
+  const a=ap.all.find(a=>a.id===id);
+  expect(strictMarkedDetails(201,a,filteredEditalDetails(201,a,ap.m.titulo_central,"bb"))).toEqual([]);
+ }
  const joint=filteredEditalGroups(tribunalCatalog,"bnb");
  const constitution=joint.find(g=>g.m.numero===204).all.find(a=>a.id===20413);
  const bridge=filteredEditalDetails(204,constitution,"Direito Constitucional","bnb");

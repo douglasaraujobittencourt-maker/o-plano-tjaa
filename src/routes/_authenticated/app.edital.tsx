@@ -12,7 +12,7 @@ import {getEditalCatalog} from "@/lib/edital-catalog";
 import {scopeLabel} from "@/lib/tribunal-catalog";
 import {filteredEditalGroups,filteredEditalDetails,strictMarkedDetails} from "@/lib/edital-view-filter";
 import {originFromDetails} from "@/lib/tjgo-edital-audit";
-import {incidencePresentation} from "@/lib/edital-incidence";
+import {incidencePresentation,incidenceMatchKey} from "@/lib/edital-incidence";
 import {getEtapasAutomaticasEdital,etapaDoAssunto} from "@/lib/edital-auto-progress";
 export const Route=createFileRoute("/_authenticated/app/edital")({head:()=>({meta:[{title:"Edital Verticalizado — TJGO e TJDFT | O Plano"}]}),component:EditalPage});
 
@@ -59,13 +59,13 @@ function EditalPage(){
          {note&&<p className="mt-1 text-xs text-muted-foreground">{note}</p>}
          {details.length>0&&<details className="mt-2 text-xs"><summary className="cursor-pointer font-medium text-muted-foreground">Temas e subtópicos do mapa de incidência</summary>
           <div className="mt-2 space-y-2">{details.map(d=>{
-           const themeOrigin=originFromDetails(details.filter(x=>x.sourceMatter===d.sourceMatter&&x.theme===d.theme));
+           const themeOrigin=originFromDetails(details.filter(x=>x.sourceMatter===d.sourceMatter&&incidenceMatchKey(x.theme)===incidenceMatchKey(d.theme)));
            const themeMarker=themeOrigin?incidencePresentation[themeOrigin]:null;
            return <div key={d.key} className="rounded-md border p-2">
            {d.sourceMatter!==m.numero&&<p className="text-muted-foreground">Referência de Legislação Complementar</p>}
            <p className={themeMarker?`font-semibold ${themeMarker.text}`:"font-semibold"}>{d.theme} · {d.approximate?"≈ ":""}{d.percent}% do tema{themeMarker&&<span className={`ml-2 inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${themeMarker.badge}`}>{themeMarker.label}</span>}</p>
            {d.subtopics.map(s=>{
-            const subOrigin=originFromDetails(details.filter(x=>x.sourceMatter===d.sourceMatter&&x.subtopics.some(y=>y.title===s.title)));
+            const subOrigin=originFromDetails(details.filter(x=>x.sourceMatter===d.sourceMatter&&incidenceMatchKey(x.theme)===incidenceMatchKey(d.theme)&&x.subtopics.some(y=>incidenceMatchKey(y.title)===incidenceMatchKey(s.title))));
             const subMarker=subOrigin?incidencePresentation[subOrigin]:null;
             return <div key={s.key} className="mt-2"><p className={subMarker?`font-medium ${subMarker.text}`:"font-medium"}>{s.title}{subMarker&&<span className={`ml-2 inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${subMarker.badge}`}>{subMarker.label}</span>}</p><p className="text-muted-foreground">{s.description}</p></div>;
            })}

@@ -47,7 +47,7 @@ function EditalPage(){
  .map(g=>{
   const name=bank!=="caixa"?(cleanGoNames[g.m.numero]??g.m.titulo_central):g.m.titulo_central;
   const topics=groupCleanSyllabus(g.m.numero,g.all,bank!=="caixa",true)
-   .map(a=>{const detail=bank!=="caixa"&&a.official?getGoStudyDetail(g.m.numero,a.id):undefined;return {...a,detail,displayTitle:detail?.title??a.displayTitle};})
+   .flatMap(a=>{const detail=bank!=="caixa"&&a.official?getGoStudyDetail(g.m.numero,a.id):undefined;const row={...a,viewKey:String(a.id),detail,displayTitle:detail?.title??a.displayTitle};if(g.m.numero!==203||a.id!==20312||!a.official||bank==="caixa")return [row];const competence=getGoStudyDetail(203,"20312:competencia");return [row,{...row,viewKey:"20312:competencia",detail:competence,displayTitle:competence?.title??"Competência administrativa"}];})
    .filter(a=>!query||normalize(name+" "+a.displayTitle+" "+a.searchText).includes(query));
   return {...g,m:{...g.m,titulo_central:name},topics};
  }).filter(g=>g.topics.length>0);
@@ -56,7 +56,6 @@ function EditalPage(){
   <p className="text-sm text-muted-foreground">{bank==="bb"?"TJGO 2021 · Analista Judiciário – Área de Apoio Judiciário e Administrativo":bank==="caixa"?"TJDFT 2022 · Técnico Judiciário – Área Administrativa":"TJGO 2021 · Analista Judiciário – Área de Apoio Judiciário e Administrativo | TJDFT 2022 · Técnico Judiciário – Área Administrativa"}</p></header>
   <BankExamSelector/>
   <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar matéria ou assunto..." aria-label="Buscar assuntos"/>
-  {bank!=="caixa"&&<p className="text-xs text-muted-foreground">56 assuntos importados do material enviado. Administração Pública, Legislação Complementar, Língua Portuguesa e História e Geografia de Goiás estão completas. Os demais mantêm o conteúdo oficial.</p>}
   {catalog.isPending&&<p>Carregando edital...</p>}{catalog.isError&&<p role="alert">Erro ao carregar o catálogo.</p>}
   {progress.isError&&<p role="alert" className="text-destructive text-sm">Não foi possível carregar o progresso. {String(progress.error)}</p>}
   <Accordion type="multiple" className="space-y-3">
@@ -72,7 +71,7 @@ function EditalPage(){
        const distinct=[...new Set(stages)];
        const status=distinct.length===1?distinct[0]:distinct.map(stage=>`${stages.filter(s=>s===stage).length} ${stage}`).join(" · ");
        const completed=stages.every(stage=>stage==="Concluído");
-       return <li key={a.id} className="py-3">
+       return <li key={a.viewKey} className="py-3">
         <details className="group">
          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-sm text-sm [&::-webkit-details-marker]:hidden">
           <span className="flex min-w-0 flex-1 items-start gap-2"><ChevronDown className="mt-0.5 size-4 shrink-0 -rotate-90 transition-transform group-open:rotate-0"/><span>{a.displayTitle}</span></span>

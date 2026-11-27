@@ -1,4 +1,4 @@
-// Transcrição do material enviado: trecho inicial, Português completo (páginas 5–8) e História e Geografia (páginas 12–13).
+// Transcrição dos 83 assuntos do material de mapeamento TJGO 2021, seis disciplinas.
 // Não preencher os detalhes ausentes por inferência. Chave composta preserva referências entre matérias.
 export type GoStudyDetail = {title:string;subtopics:readonly string[];charge:string|null};
 export const goStudyDetails:Readonly<Record<string,GoStudyDetail>> = {
@@ -398,6 +398,195 @@ export const goStudyDetails:Readonly<Record<string,GoStudyDetail>> = {
       "Distinção entre Registro Informal/Oralidade e Padrão Formulto Escrito."
     ],
     "charge": "Questões exigindo a reescrita de trechos informais para adequação estrita às regras da gramática normativa."
+  },
+  "203:20301": {
+    "title": "Princípios de Direito Administrativo",
+    "subtopics": [
+      "Princípio da Impessoalidade e Publicidade (Art. 37, § 1º da CF/88)."
+    ],
+    "charge": "Vedação absoluta de constar nomes, símbolos ou imagens em publicidades de obras e serviços públicos que caracterizem promoção pessoal de autoridades ou servidores."
+  },
+  "203:20310": {
+    "title": "Regime Jurídico-Administrativo",
+    "subtopics": [
+      "Bipolariedade do Regime: Supremacia vs. Indisponibilidade do Interesse Público."
+    ],
+    "charge": "Equilíbrio entre as prerrogativas especiais da Administração Pública (poderes de império) e as restrições impostas em garantia aos direitos dos administrados."
+  },
+  "203:20302": {
+    "title": "Administração Pública direta e indireta",
+    "subtopics": [
+      "Caracterização das Entidades da Administração Indireta (Autarquias, Fundações, EP e SEM)."
+    ],
+    "charge": "Autarquias criadas diretamente por lei específica (personalidade de direito público), enquanto Empresas Públicas e Sociedades de Economia Mista têm criação autorizada por lei (direito privado)."
+  },
+  "203:20303": {
+    "title": "Atos Administrativos: elementos e atributos",
+    "subtopics": [
+      "Presunção de Legitimidade e Atributos/Elementos do Ato."
+    ],
+    "charge": "A presunção de legitimidade e veracidade decorre diretamente do princípio da legalidade. Exige-se também o domínio dos 5 elementos (Competência, Finalidade, Forma, Motivo e Objeto)."
+  },
+  "203:20311": {
+    "title": "Classificações e espécies dos atos administrativos",
+    "subtopics": [
+      "Atos Normativos, Ordinatórios e Vinculados vs. Discricionários."
+    ],
+    "charge": "Diferenciação entre atos que expressam a margem de conveniência e oportunidade da Administração e atos de aplicação estrita da lei."
+  },
+  "203:20312": {
+    "title": "Anulação, revogação e convalidação dos atos administrativos",
+    "subtopics": [
+      "Regime Jurídico da Convalidação (Ex Tunc)."
+    ],
+    "charge": "A convalidação suprime defeito sanável de ato ilegal (vícios de competência não exclusiva e forma não essencial), produzindo efeitos retroativos (ex tunc) à data de edição do ato original."
+  },
+  "203:20312:competencia": {
+    "title": "Competência administrativa",
+    "subtopics": [
+      "Delegação e Avocação de Competência (Lei nº 9.784/1999)."
+    ],
+    "charge": "Hipóteses de vedação da delegação (edição de atos normativos, decisão de recursos administrativos e matérias de competência exclusiva)."
+  },
+  "203:20313": {
+    "title": "Contratos administrativos: formalização e espécies",
+    "subtopics": [
+      "Cláusulas Exorbitantes e Alteração Unilateral do Contrato."
+    ],
+    "charge": "Prerrogativas estatais de rescisão unilateral, modificação de quantitativos e aplicação de penalidades contratuais."
+  },
+  "203:20307": {
+    "title": "Licitação: Lei n. 8.666/93 e Lei nº 14.133, de 01 de abril de 2021",
+    "subtopics": [
+      "Agentes de Contratação, Modalidades Novas e Margem de Preferência."
+    ],
+    "charge": "Exigência de que os agentes de contratação não possuam vínculo de parentesco (até 3º grau) com licitantes habituais; hipóteses de cabimento do Diálogo Competitivo; e concessão de margem de preferência para empresas com reserva legal de vagas para pessoas com deficiência (PCD)."
+  },
+  "203:20314": {
+    "title": "Recursos administrativos: critérios e prazos",
+    "subtopics": [
+      "Efeitos dos Recursos Administrativos (Devolutivo e Suspensivo)."
+    ],
+    "charge": "Regra geral do efeito apenas devolutivo, salvo previsão legal expressa em contrário ou concessão de efeito suspensivo por justa causa."
+  },
+  "203:20305": {
+    "title": "Processos administrativos e prescrição administrativa",
+    "subtopics": [
+      "Princípios do Processo Administrativo (Contraditório, Ampla Defesa e Verdade Real)."
+    ],
+    "charge": "Prazo prescricional de 5 anos para a Administração anular atos administrativos ilegais dos quais decorram efeitos favoráveis aos destinatários (salvo comprovada má-fé)."
+  },
+  "203:20316": {
+    "title": "Agentes públicos: agentes políticos e servidores públicos",
+    "subtopics": [
+      "Provimento, Estabilidade e Reintegração vs. Disponibilidade."
+    ],
+    "charge": "Reintegração como retorno do servidor estável demitido ilegalmente (com ressarcimento de direitos); e colocação em disponibilidade com remuneração proporcional ao tempo de serviço quando extinto o cargo."
+  },
+  "203:20306": {
+    "title": "Controle da Administração Pública",
+    "subtopics": [
+      "Atos de Improbidade Administrativa (Lei nº 8.429/1992 com alterações da Lei nº 14.230/2021)."
+    ],
+    "charge": "Caracterização dos atos que causam prejuízo ao erário (como permitir/facilitar a aquisição ou locação por preço superior ao de mercado); exigência estrita de dolo; e efetivação da perda da função pública e suspensão dos direitos políticos somente após o trânsito em julgado."
+  },
+  "203:20317": {
+    "title": "Organizações sociais",
+    "subtopics": [
+      "Requisitos de Qualificação e Regime de Bens/Pessoal."
+    ],
+    "charge": "Formalização por Contrato de Gestão e a cessão de servidores públicos com ônus para o cessionário."
+  },
+  "204:20401": {
+    "title": "Direitos e deveres fundamentais; Direitos e deveres individuais e coletivos, direito à vida, à liberdade, à igualdade, à segurança e à propriedade",
+    "subtopics": [
+      "Garantias do Artigo 5º da CF/88 (Inafastabilidade da Jurisdição, Impenhorabilidade e Manifestação do Pensamento)."
+    ],
+    "charge": "Inafastabilidade: A lei não excluirá da apreciação do Poder Judiciário lesão ou ameaça a direito (art. 5º, XXXV). Impenhorabilidade: A pequena propriedade rural trabalhada pela família não será objeto de penhora para pagamento de débitos decorrentes de sua atividade produtiva. Manifestação: Livre manifestação do pensamento, sendo vedado o anonimato."
+  },
+  "204:20402": {
+    "title": "Direitos sociais",
+    "subtopics": [
+      "Rol dos Direitos Sociais do Art. 6º e Direitos dos Trabalhadores (Art. 7º)."
+    ],
+    "charge": "Aplicação dos direitos sociais aos servidores públicos e cláusula da reserva do possível vinculada ao mínimo existencial."
+  },
+  "204:20409": {
+    "title": "Direitos difusos",
+    "subtopics": [
+      "Tutela Constitucional dos Interesses Difusos e Coletivos via Ação Popular e Ação Civil Pública."
+    ],
+    "charge": "Legitimidade do cidadão para propor Ação Popular para anular ato lesivo ao patrimônio público, moralidade administrativa, meio ambiente e patrimônio histórico/cultural."
+  },
+  "204:20403": {
+    "title": "Nacionalidade e cidadania",
+    "subtopics": [
+      "Hipóteses de Nacionalidade Nata e Perda da Nacionalidade (Art. 12 da CF)."
+    ],
+    "charge": "Cargos privativos de brasileiro nato e as novas regras de perda da nacionalidade brasileira introduzidas por emenda constitucional."
+  },
+  "204:20404": {
+    "title": "Direitos políticos",
+    "subtopics": [
+      "Condições de Elegibilidade e Inelegibilidades (Art. 14 da CF)."
+    ],
+    "charge": "Idades mínimas para cargos eletivos e inelegibilidade reflexa de parentes do Chefe do Executivo."
+  },
+  "204:20410": {
+    "title": "Garantias constitucionais individuais, sociais e políticas",
+    "subtopics": [
+      "Remédios Constitucionais (Mandado de Segurança, Habeas Data e Mandado de Injunção)."
+    ],
+    "charge": "Prazo decadencial de 120 dias para impetração do Mandado de Segurança e cabimento do Habeas Data para assegurar o conhecimento de informações relativas à pessoa do impetrante."
+  },
+  "204:20405": {
+    "title": "Princípios constitucionais: individuais e da administração pública",
+    "subtopics": [
+      "Aplicação dos Princípios Constitucionais à Atividade Administrativa e Judiciária."
+    ],
+    "charge": "Exigência de motivação das decisões e transparência dos atos públicos."
+  },
+  "204:20411": {
+    "title": "Poder constituinte",
+    "subtopics": [
+      "Poder Constituinte Originário vs. Derivado Reformador (Limitações às Emendas Constitucionais)."
+    ],
+    "charge": "Limitações materiais (Cláusulas Pétreas do art. 60, § 4º) e limitações formais/procedimentais de votação."
+  },
+  "204:20406": {
+    "title": "Normas constitucionais relativas à Administração Pública e aos servidores públicos da Administração Pública",
+    "subtopics": [
+      "Remuneração por Subsídio (Art. 39, § 4º da CF) e Teto Remuneratório."
+    ],
+    "charge": "Fixação da remuneração de membros de Poder por subsídio em parcela única, vedado o acréscimo de qualquer gratificação ou adicional; e teto no âmbito estadual limitado ao subsídio do Governador no Executivo e Desembargadores do TJ no Judiciário."
+  },
+  "204:20412": {
+    "title": "Constituição Federal",
+    "subtopics": [
+      "Supremacia Constitucional e Controle de Constitucionalidade."
+    ],
+    "charge": "Princípios fundamentais da República Federativa do Brasil e a hierarquia das normas."
+  },
+  "204:20413": {
+    "title": "Constituição do Estado de Goiás",
+    "subtopics": [
+      "Processo Legislativo Estadual — Proposta de Emenda à Constituição Estadual (PEC Estadual)."
+    ],
+    "charge": "Legitimidade para propor Emenda à Constituição de Goiás: exige no mínimo 1/5 dos Deputados Estaduais, o Governador do Estado ou mais da metade das Câmaras Municipais manifestando-se pela maioria relativa de seus membros."
+  },
+  "204:20414": {
+    "title": "Princípios e garantias dos membros do poder judiciário",
+    "subtopics": [
+      "Garantias Institucionais e Funcionais dos Magistrados (Vitaliciedade, Inamovibilidade e Irredutibilidade de Subsídio)."
+    ],
+    "charge": "Prazo de 2 anos de efetivo exercício para aquisição da vitaliciedade e as hipóteses excepcionais de perda do cargo por decisão do tribunal ou sentença judicial transitada em julgado."
+  },
+  "204:20407": {
+    "title": "Poder Judiciário: juízes, Tribunais Estaduais e Regionais, do Supremo Tribunal Federal, do Superior Tribunal de Justiça, dos Tribunais e Juízes dos Estados",
+    "subtopics": [
+      "Obrigatoriedade de Distribuição Imediata e Criação do Órgão Especial (Art. 93 e 95 da CF)."
+    ],
+    "charge": "Princípio da distribuição imediata de processos em todos os graus de jurisdição; e possibilidade de constituição de Órgão Especial em tribunais com número superior a 25 julgadores (mínimo de 11 e máximo de 25 membros)."
   }
 };
 export const goStudyWeights:Readonly<Record<number,{questions:number;weight:number;points:number}>> = {
@@ -405,6 +594,6 @@ export const goStudyWeights:Readonly<Record<number,{questions:number;weight:numb
  202:{questions:15,weight:1,points:15},203:{questions:7,weight:2,points:14},
  204:{questions:5,weight:2,points:10},206:{questions:5,weight:1,points:5},
 };
-export function getGoStudyDetail(matter:number,id:number):GoStudyDetail|undefined{
+export function getGoStudyDetail(matter:number,id:number|string):GoStudyDetail|undefined{
  return goStudyDetails[matter+":"+id];
 }

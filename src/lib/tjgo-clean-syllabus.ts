@@ -441,7 +441,7 @@ export function groupCleanSyllabus<T extends {id:number;topico_central:string}>(
   const previous=groups[groups.length-1];
   // Português: o documento reúne formação/composição e ortografia/fonemas/acentuação.
   // Agrupamento exclusivamente visual; nenhum ID de estudo é eliminado.
-  const documentContinuation=matchStudyDocument&&matter===202&&[20227,20228,20214].includes(item.id);
+  const documentContinuation=matchStudyDocument&&((matter===202&&[20227,20228,20214].includes(item.id))||(matter===203&&[20308,20309,20315].includes(item.id)));
   if(literal!==undefined&&(cleanGoContinuation.has(item.id)||documentContinuation)&&previous?.official){
    previous.ids.push(item.id);
    previous.displayTitle+=" "+title;

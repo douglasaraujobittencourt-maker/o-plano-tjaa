@@ -1,8 +1,6 @@
-// Transcrição do anexo enviado (texto disponível até Português, assunto 6).
+// Transcrição do material enviado: trecho inicial e PDF mapeamento-completo-edital-tjgo-2021, páginas 12–13 (História e Geografia).
 // Não preencher os detalhes ausentes por inferência. Chave composta preserva referências entre matérias.
-import {incidenceMaps} from "./incidence-data";
-import {cleanGoRows} from "./tjgo-clean-syllabus";
-export type GoStudyDetail = {title:string;subtopics:readonly string[];charge:string|null;source?:"incidence-map"};
+export type GoStudyDetail = {title:string;subtopics:readonly string[];charge:string|null};
 export const goStudyDetails:Readonly<Record<string,GoStudyDetail>> = {
   "201:20107": {
     "title": "Paradigmas da Administração Pública e reformas administrativas",
@@ -218,6 +216,69 @@ export const goStudyDetails:Readonly<Record<string,GoStudyDetail>> = {
       "Articulação de Parágrafos e Introdução de Informações Novas."
     ],
     "charge": "Análise de como o texto introduz novos conceitos mantendo o núcleo temático central sem rupturas lógicas."
+  },
+  "206:20601": {
+    "title": "Aspectos da História Social de Goiás: o povoamento branco, os grupos indígenas, a escravidão e cultura negra, os movimentos sociais no campo e a cultura popular",
+    "subtopics": [
+      "Estrutura Social e Judiciária do Século XIX no Período Imperial."
+    ],
+    "charge": "Análise histórica fundamentada nos relatórios provisórios de 1835 sobre a extrema carência de bacharéis letrados nas comarcas do interior de Goiás (apenas a Comarca de Goyaz dispunha de Juiz de Direito letrado), ocasionando morosidade e graves dificuldades na aplicação das leis formais."
+  },
+  "206:20602": {
+    "title": "Aspectos da história econômica de Goiás: a mineração no século XVIII, a agropecuária nos séculos XIX e XX, a estrada de ferro e a modernização da economia goiana, as transformações econômicas com a construção de Goiânia e Brasília, industrialização, infraestrutura e planejamento; modernização da agricultura e urbanização do território goiano",
+    "subtopics": [
+      "Expansão do Setor Sucroenergético a partir de 2006."
+    ],
+    "charge": "Crescimento acelerado da cultura da cana-de-açúcar em Goiás focado na produção de etanol e na cogeração de bioeletricidade a partir do bagaço, impulsionado por fatores edafoclimáticos extremamente favoráveis (qualidade do solo e clima) e por políticas de incentivo fiscal."
+  },
+  "206:20607": {
+    "title": "Aspectos da história política de Goiás: a independência em Goiás, o Coronelismo na República Velha, as oligarquias, a Revolução de 1930, a administração política de 1930 até os dias atuais",
+    "subtopics": [
+      "O Coronelismo, Folclore Político e as Campanhas Eleitorais do Século XX."
+    ],
+    "charge": "Caracterização do mandonismo local, alianças oligárquicas regionais, religiosidade e práticas culturais inseridas na dinâmica política cotidiana goiana."
+  },
+  "206:20609": {
+    "title": "Aspectos históricos e urbanísticos de Goiás e de Goiânia",
+    "subtopics": [
+      "Estilo Arquitetônico Art Déco e o Discurso Político da Modernidade."
+    ],
+    "charge": "O acervo arquitetônico Art Déco na construção dos edifícios públicos pioneiros de Goiânia nas décadas de 1930/1940 (linhas retas, simetria e formas geométricas) e a utilização do ideário de \"modernidade\" e \"marcha para o oeste\" para legitimar a mudança da capital da cidade de Goiás para Goiânia (1933) e a posterior transferência da capital federal para Brasília (1960)."
+  },
+  "206:20610": {
+    "title": "Aspectos da Cultura Goiana: culinária regional, festas religiosas, folclore, patrimônio histórico-cultural e turismo",
+    "subtopics": [
+      "Festas Tradicionais e Patrimônio Imaterial (Procissão do Fogaréu e Cavalhadas)."
+    ],
+    "charge": "Manifestações religiosas e culturais de Pirenópolis e da cidade de Goiás como atrativos turísticos e marcas da identidade histórica goiana."
+  },
+  "206:20611": {
+    "title": "População goiana: povoamento, migrações, densidade, distribuição demográfica, população economicamente ativa",
+    "subtopics": [
+      "Dinâmica de Migração e Concentração Populacional no Eixo Goiânia-Anápolis-Brasília."
+    ],
+    "charge": "Fluxos migratórios atraídos pela expansão da fronteira agrícola e pela industrialização, gerando forte adensamento populacional na Região Metropolitana de Goiânia."
+  },
+  "206:20612": {
+    "title": "As regiões goianas e as desigualdades regionais",
+    "subtopics": [
+      "Disparidades Socioeconômicas entre o Sul/Sudoeste e o Norte/Nordeste Goiano."
+    ],
+    "charge": "Contraste entre a elevada produtividade agrícola e industrial do Sul/Sudoeste goiano e os menores índices de desenvolvimento humano (IDH) do Nordeste de Goiás."
+  },
+  "206:20613": {
+    "title": "Aspectos físicos do território goiano: hidrografia, clima, relevo e vegetação",
+    "subtopics": [
+      "Domínio do Bioma Cerrado e Bacias Hidrográficas."
+    ],
+    "charge": "Características do Cerrado (estação seca bem definida e estação chuvosa), relevo de planaltos e o papel de Goiás como divisor de águas de importantes bacias hidrográficas nacionais (Tocantins-Araguaia e São Francisco)."
+  },
+  "206:20614": {
+    "title": "Atualidades econômicas, políticas e sociais do Estado de Goiás",
+    "subtopics": [
+      "Etnodesenvolvimento e Desafios Socioambientais em Territórios Quilombolas."
+    ],
+    "charge": "Projetos de sustentabilidade, preservação do meio ambiente e incentivo ao turismo comunitário nos territórios Kalunga localizados no Nordeste de Goiás."
   }
 };
 export const goStudyWeights:Readonly<Record<number,{questions:number;weight:number;points:number}>> = {
@@ -225,15 +286,6 @@ export const goStudyWeights:Readonly<Record<number,{questions:number;weight:numb
  202:{questions:15,weight:1,points:15},203:{questions:7,weight:2,points:14},
  204:{questions:5,weight:2,points:10},206:{questions:5,weight:1,points:5},
 };
-export function getGoStudyDetail(matter:number,id:number,ids:readonly number[]=[id]):GoStudyDetail|undefined{
- const imported=goStudyDetails[matter+":"+id];
- if(imported||matter!==206)return imported;
- // O anexo recebido não contém História. Usa somente os subtópicos já
- // cadastrados no Mapa de Incidência, com vínculos explícitos desta matéria.
- const subject=incidenceMaps.tjgo?.verbena?.subjects.find(s=>s.name==="História e Geografia de Goiás");
- const officialIds=new Set(cleanGoRows[206].map(r=>r[0]));
- const rowIds=new Set(ids.filter(n=>officialIds.has(n)));
- const matches=(subject?.themes??[]).filter(t=>t.percent>0).flatMap(t=>t.subtopics.filter(s=>s.percent!==0&&s.questions!==0&&s.editalTopicIds?.some(n=>rowIds.has(n))));
- if(!matches.length)return undefined;
- return {title:cleanGoRows[206].filter(r=>rowIds.has(r[0])).map(r=>r[1]).join(" "),subtopics:matches.map(s=>s.title),charge:matches.map(s=>s.title+": "+s.description).join("\n\n"),source:"incidence-map"};
+export function getGoStudyDetail(matter:number,id:number):GoStudyDetail|undefined{
+ return goStudyDetails[matter+":"+id];
 }

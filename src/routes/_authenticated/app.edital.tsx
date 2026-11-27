@@ -1,7 +1,7 @@
 import {createFileRoute} from "@tanstack/react-router";
 import {useQuery} from "@tanstack/react-query";
 import {useState} from "react";
-import {BookOpenCheck,Flame} from "lucide-react";
+import {BookOpenCheck,Flame,ChevronRight} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Card} from "@/components/ui/card";
 import {Input} from "@/components/ui/input";
@@ -18,6 +18,8 @@ function EditalPage(){
  const {bank}=useBankExam();
  const [search,setSearch]=useState("");
  const [onlyHigh,setOnlyHigh]=useState(false);
+ const [open,setOpen]=useState<Set<number>>(new Set());
+ const toggle=(id:number)=>setOpen(p=>{const n=new Set(p);if(n.has(id))n.delete(id);else n.add(id);return n;});
  const catalog=useQuery({queryKey:["edital-catalog"],queryFn:getEditalCatalog,staleTime:0,refetchInterval:5000});
  const progress=useQuery({queryKey:["edital-auto-progresso"],queryFn:getEtapasAutomaticasEdital,refetchInterval:10000,refetchOnWindowFocus:true});
  const normalize=(s:string)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -29,9 +31,11 @@ function EditalPage(){
   let parentHigh=false;
   const topics=g.all.map(a=>{const literal=bank!=="caixa"?cleanGoTitle(g.m.numero,a.id):undefined;const continuation=literal!==undefined&&cleanGoContinuation.has(a.id);
     // Alta incidência = tema de maior percentual da matéria no Mapa (Instituto Verbena); subtópicos herdam do tópico.
-    const own=filteredEditalDetails(g.m.numero,a,name,bank).some(d=>d.bank==="verbena"&&d.highTheme);
+    const highDetails=filteredEditalDetails(g.m.numero,a,name,bank).filter(d=>d.bank==="verbena"&&d.highTheme);
+    const own=highDetails.length>0;
+    const subs=[...new Map(highDetails.flatMap(d=>d.subtopics).map(x=>[x.key,x])).values()];
     const high=own||(continuation&&parentHigh);if(!continuation)parentHigh=own;
-    return {...a,displayTitle:literal??a.topico_central,continuation,high};})
+    return {...a,displayTitle:literal??a.topico_central,continuation,high,subs};})
    .filter(a=>!query||normalize(name+" "+a.displayTitle+" "+a.topico_central).includes(query))
    .filter(a=>!onlyHigh||a.high);
   return {...g,m:{...g.m,titulo_central:name},topics};
@@ -58,7 +62,8 @@ function EditalPage(){
       {topics.map(a=>{
        return <li key={a.id} className="flex flex-wrap justify-between gap-2 py-3">
         <div className={`min-w-[min(180px,100%)] flex-1 ${a.continuation?"pl-4":""}`}>
-         <p className="text-sm">{a.displayTitle}{a.high&&<span title="Alta incidência — Instituto Verbena" className="ml-2 inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 align-middle text-[11px] font-semibold text-destructive"><Flame className="size-3"/>Alta incidência · Verbena</span>}</p>
+         {a.subs.length>0?<button type="button" onClick={()=>toggle(a.id)} aria-expanded={open.has(a.id)} className="flex w-full items-start gap-1 text-left text-sm"><ChevronRight className={`mt-0.5 size-4 shrink-0 transition-transform ${open.has(a.id)?"rotate-90":""}`}/><span>{a.displayTitle}{a.high&&<span title="Alta incidência — Instituto Verbena" className="ml-2 inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 align-middle text-[11px] font-semibold text-destructive"><Flame className="size-3"/>Alta incidência · Verbena</span>}</span></button>:<p className="text-sm">{a.displayTitle}{a.high&&<span title="Alta incidência — Instituto Verbena" className="ml-2 inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 align-middle text-[11px] font-semibold text-destructive"><Flame className="size-3"/>Alta incidência · Verbena</span>}</p>}
+         {a.subs.length>0&&open.has(a.id)&&<ul className="mt-2 space-y-1 border-l-2 border-destructive/40 pl-3">{a.subs.map(x=><li key={x.key} className="text-xs"><span className="font-medium">{x.title}</span><span className="ml-2 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-destructive/10 px-1.5 text-[10px] font-semibold text-destructive"><Flame className="size-3"/>Alta incidência</span>{x.description&&<p className="text-muted-foreground">{x.description}</p>}</li>)}</ul>}
         </div>
         <span className="text-xs text-muted-foreground">{progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)}</span>
        </li>;

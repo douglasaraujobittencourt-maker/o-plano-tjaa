@@ -57,7 +57,7 @@ function EditalPage(){
          <p className={marker?`text-sm font-semibold ${marker.text}`:"text-sm"}>{a.topico_central}{marker&&<span className={`ml-2 inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${marker.badge}`}>{marker.label}</span>}</p>
          <Badge variant="outline" className="mt-1">{scope}</Badge>
          {note&&<p className="mt-1 text-xs text-muted-foreground">{note}</p>}
-         {details.length>0&&<details className="mt-2 text-xs"><summary className="cursor-pointer font-medium text-muted-foreground">Temas e subtópicos do mapa de incidência</summary>
+         {details.length>0&&<details open={m.numero===201?true:undefined} className="mt-2 text-xs"><summary className="cursor-pointer font-medium text-muted-foreground">Temas e subtópicos do mapa de incidência</summary>
           <div className="mt-2 space-y-2">{details.map(d=>{
            const themeOrigin=originFromDetails(details.filter(x=>x.sourceMatter===d.sourceMatter&&incidenceMatchKey(x.theme)===incidenceMatchKey(d.theme)));
            const themeMarker=themeOrigin?incidencePresentation[themeOrigin]:null;

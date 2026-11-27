@@ -75,7 +75,7 @@ function resolveIncidence(matter:number,topic:AuditTopic,bank:BankExam,maps:type
      });
      if(!owner&&!children.length)continue;
      const key=tribunal+":"+banca+":"+incidenceMatterKey(subject.name)+":"+incidenceMatchKey(theme.title);
-     result.push({key,bank:banca,tribunal,sourceMatter:matter,theme:theme.title,percent:theme.percent,approximate:map.approximate,highTheme:theme.percent===maxTheme,contextOnly:!owner,
+     result.push({key,bank:banca,tribunal,sourceMatter:matter,theme:theme.title,percent:theme.percent,approximate:map.approximate,highTheme:theme.percent===maxTheme,contextOnly:themeIds[0]!==topic.id,
       subtopics:children.map(s=>({key:key+":"+incidenceMatchKey(s.title),title:s.title,description:s.description,questions:s.questions,percent:s.percent,weight:s.percent??(s.questions!=null&&subject.total>0?100*s.questions/subject.total:null),high:theme.percent===maxTheme}))});
     }
    }

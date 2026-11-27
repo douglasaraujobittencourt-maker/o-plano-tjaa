@@ -84,7 +84,8 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
           }
         ],
         "editalTopicIds": [
-          20114
+          20114,
+          20116
         ]
       },
       {
@@ -102,7 +103,8 @@ export const incidenceMaps: Partial<Record<Tribunal, Partial<Record<Banca, Incid
             "title": "Gestão por Processos e Indicadores",
             "description": "Mapeamento de processos judiciais/administrativos, fluxogramas e medição de eficiência, eficácia e efetividade.",
             "editalTopicIds": [
-              20122
+              20122,
+              20104
             ]
           }
         ],

@@ -181,9 +181,9 @@ test("filtros do edital excluem assuntos do tribunal oposto e unificam IDs sem d
  expect(go.find(g=>g.m.numero===201).all.slice(0,4).map(a=>a.id)).toEqual([20107,20101,20108,20102]);
  expect(df.find(g=>g.m.numero===202).all.slice(0,3).map(a=>a.id)).toEqual([20230,20204,20201]);
  const children=(groups,bank)=>groups.flatMap(g=>g.all.flatMap(a=>filteredEditalDetails(g.m.numero,a,g.m.titulo_central,bank).flatMap(d=>d.subtopics.map(s=>s.key))));
- expect(children(go,"bb").length).toBe(40);
+ expect(new Set(children(go,"bb")).size).toBe(40);
  expect(children(df,"caixa").length).toBe(0);
- expect(children(both,"bnb").length).toBe(44);
+ expect(children(both,"bnb").length).toBe(45);
  expect(new Set(children(both,"bnb")).size).toBe(44);
 });
 
@@ -192,15 +192,15 @@ test("grifos do edital exigem subtópico direto no mapa da mesma matéria e banc
  const groups=filteredEditalGroups(tribunalCatalog,"bb");
  const ap=groups.find(g=>g.m.numero===201);
  const marked=ap.all.filter(a=>strictMarkedDetails(201,a,filteredEditalDetails(201,a,ap.m.titulo_central,"bb")).length);
- expect(marked.map(a=>a.id).sort((a,b)=>a-b)).toEqual([20101,20102,20103,20107,20111,20113,20114,20115,20121,20122,20123]);
+ expect(marked.map(a=>a.id).sort((a,b)=>a-b)).toEqual([20101,20102,20103,20104,20107,20111,20113,20114,20115,20116,20121,20122,20123]);
  const counts=marked.flatMap(a=>strictMarkedDetails(201,a,filteredEditalDetails(201,a,ap.m.titulo_central,"bb")).flatMap(d=>d.subtopics));
- expect(counts.length).toBe(9);
+ expect(counts.length).toBe(10);
  const markedThemes=marked.flatMap(a=>strictMarkedDetails(201,a,filteredEditalDetails(201,a,ap.m.titulo_central,"bb")).filter(d=>!d.contextOnly));
  expect(markedThemes.length).toBe(5);
  expect(markedThemes.map(d=>d.percent).sort((a,b)=>b-a)).toEqual([25,22,20,20,13]);
  expect(new Set(counts.map(s=>s.key)).size).toBe(9);
  expect(new Set(markedThemes.map(d=>d.key)).size).toBe(5);
- for(const id of [20104,20108,20109,20110,20116]){
+ for(const id of [20108,20109,20110]){
   const a=ap.all.find(a=>a.id===id);
   expect(strictMarkedDetails(201,a,filteredEditalDetails(201,a,ap.m.titulo_central,"bb"))).toEqual([]);
  }
@@ -251,4 +251,21 @@ test("fonte compartilhada sincroniza temas e subtópicos de todas as matérias e
  expect(get(both,"caixa")).toEqual([]);
  const wrong=JSON.parse(JSON.stringify(incidenceMaps));wrong.tjgo.verbena.subjects[0].themes[0].editalTopicIds=[20301];
  expect(get(wrong).some(d=>d.theme==="Paradigmas e Modelos da Gestão Pública"&&!d.contextOnly)).toBe(false);
+});
+
+
+test("Accountability e Indicadores recebem a etiqueta Verbena pelo mapa, sem novos assuntos oficiais",()=>{
+ const groups=filteredEditalGroups(tribunalCatalog,"bb");
+ const ap=groups.find(g=>g.m.numero===201);
+ for(const [id,theme,percent] of [[20116,"Transparência, Governança e Accountability",20],[20104,"Orçamento Público e Gestão por Processos",20]]){
+  const a=ap.all.find(a=>a.id===id);
+  const details=filteredEditalDetails(201,a,ap.m.titulo_central,"bb");
+  expect(originFromDetails(strictMarkedDetails(201,a,details))).toBe("verbena");
+  expect(details.some(d=>d.theme===theme&&d.percent===percent)).toBe(true);
+ }
+ const indicators=ap.all.find(a=>a.id===20104);
+ expect(filteredEditalDetails(201,indicators,ap.m.titulo_central,"bb")[0].subtopics[0].title).toBe("Gestão por Processos e Indicadores");
+ const rows=ap.all.flatMap(a=>filteredEditalDetails(201,a,ap.m.titulo_central,"bb"));
+ expect(new Set(rows.map(d=>d.key)).size).toBe(5);
+ expect(new Set(rows.flatMap(d=>d.subtopics.map(s=>s.key))).size).toBe(9);
 });

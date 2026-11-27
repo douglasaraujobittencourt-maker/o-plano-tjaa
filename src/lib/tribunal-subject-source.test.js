@@ -269,3 +269,14 @@ test("Accountability e Indicadores recebem a etiqueta Verbena pelo mapa, sem nov
  expect(new Set(rows.map(d=>d.key)).size).toBe(5);
  expect(new Set(rows.flatMap(d=>d.subtopics.map(s=>s.key))).size).toBe(9);
 });
+
+
+import {cleanGoRows,cleanGoNames,cleanGoTitle} from "./tjgo-clean-syllabus";
+test("edital limpo mantém sequência e IDs oficiais do TJGO",()=>{
+ const groups=filteredEditalGroups(tribunalCatalog,"bb").filter(g=>cleanGoNames[g.m.numero]);
+ expect(groups.map(g=>g.m.numero)).toEqual([202,206,205,204,203,201]);
+ for(const g of groups){expect(cleanGoRows[g.m.numero].map(r=>r[0])).toEqual(g.all.map(a=>a.id));expect(g.all.every(a=>cleanGoTitle(g.m.numero,a.id))).toBe(true);}
+ expect(new Set(groups.flatMap(g=>g.all.map(a=>a.id))).size).toBe(100);
+ expect(cleanGoTitle(201,20102)).toBe("Nova gestão pública.");
+ expect(cleanGoTitle(205,20413)).toBe("Constituição do Estado de Goiás.");
+});

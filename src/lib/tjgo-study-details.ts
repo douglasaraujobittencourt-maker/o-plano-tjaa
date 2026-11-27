@@ -1,6 +1,8 @@
 // Transcrição do anexo enviado (texto disponível até Português, assunto 6).
 // Não preencher os detalhes ausentes por inferência. Chave composta preserva referências entre matérias.
-export type GoStudyDetail = {title:string;subtopics:readonly string[];charge:string|null};
+import {incidenceMaps} from "./incidence-data";
+import {cleanGoRows} from "./tjgo-clean-syllabus";
+export type GoStudyDetail = {title:string;subtopics:readonly string[];charge:string|null;source?:"incidence-map"};
 export const goStudyDetails:Readonly<Record<string,GoStudyDetail>> = {
   "201:20107": {
     "title": "Paradigmas da Administração Pública e reformas administrativas",
@@ -223,6 +225,15 @@ export const goStudyWeights:Readonly<Record<number,{questions:number;weight:numb
  202:{questions:15,weight:1,points:15},203:{questions:7,weight:2,points:14},
  204:{questions:5,weight:2,points:10},206:{questions:5,weight:1,points:5},
 };
-export function getGoStudyDetail(matter:number,id:number):GoStudyDetail|undefined{
- return goStudyDetails[matter+":"+id];
+export function getGoStudyDetail(matter:number,id:number,ids:readonly number[]=[id]):GoStudyDetail|undefined{
+ const imported=goStudyDetails[matter+":"+id];
+ if(imported||matter!==206)return imported;
+ // O anexo recebido não contém História. Usa somente os subtópicos já
+ // cadastrados no Mapa de Incidência, com vínculos explícitos desta matéria.
+ const subject=incidenceMaps.tjgo?.verbena?.subjects.find(s=>s.name==="História e Geografia de Goiás");
+ const officialIds=new Set(cleanGoRows[206].map(r=>r[0]));
+ const rowIds=new Set(ids.filter(n=>officialIds.has(n)));
+ const matches=(subject?.themes??[]).filter(t=>t.percent>0).flatMap(t=>t.subtopics.filter(s=>s.percent!==0&&s.questions!==0&&s.editalTopicIds?.some(n=>rowIds.has(n))));
+ if(!matches.length)return undefined;
+ return {title:cleanGoRows[206].filter(r=>rowIds.has(r[0])).map(r=>r[1]).join(" "),subtopics:matches.map(s=>s.title),charge:matches.map(s=>s.title+": "+s.description).join("\n\n"),source:"incidence-map"};
 }

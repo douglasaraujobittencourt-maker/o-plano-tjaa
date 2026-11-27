@@ -359,3 +359,19 @@ test("importa integralmente os 30 assuntos completos disponíveis, por matéria 
  expect(getGoStudyDetail(202,20204)).toBeUndefined();
  expect(Object.values(goStudyWeights).reduce((sum,m)=>sum+m.points,0)).toBe(100);
 });
+
+
+test("História e Geografia usa os cinco subtópicos cadastrados no mapa, incluindo IDs agrupados",()=>{
+ const go=filteredEditalGroups(tribunalCatalog,"bb").find(g=>g.m.numero===206);
+ const rows=groupCleanSyllabus(206,go.all,true);
+ const entries=rows.map(r=>({row:r,detail:getGoStudyDetail(206,r.id,r.ids)}));
+ expect(rows.length).toBe(9);
+ const mapped=entries.filter(x=>x.detail);
+ expect(mapped.map(x=>x.row.id)).toEqual([20601,20602,20607,20609]);
+ expect(mapped.flatMap(x=>x.detail.subtopics).sort()).toEqual(["Século XIX e Estrutura Judiciária","Século XX e Urbanismo","Política e Sociedade","Setor Sucroenergético","Socioeconomia e Comunidades"].sort());
+ expect(mapped.every(x=>x.detail.source==="incidence-map"&&x.detail.charge)).toBe(true);
+ expect(mapped.find(x=>x.row.id===20602).detail.charge).toContain("Expansão canavieira pós-2006");
+ expect(getGoStudyDetail(206,20610)).toBeUndefined();
+ expect(getGoStudyDetail(206,20614)).toBeUndefined();
+ expect(getGoStudyDetail(202,20201).source).toBeUndefined();
+});

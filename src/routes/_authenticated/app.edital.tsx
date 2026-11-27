@@ -47,7 +47,7 @@ function EditalPage(){
  .map(g=>{
   const name=bank!=="caixa"?(cleanGoNames[g.m.numero]??g.m.titulo_central):g.m.titulo_central;
   const topics=groupCleanSyllabus(g.m.numero,g.all,bank!=="caixa")
-   .map(a=>{const detail=bank!=="caixa"&&a.official?getGoStudyDetail(g.m.numero,a.id):undefined;return {...a,detail,displayTitle:detail?.title??a.displayTitle};})
+   .map(a=>{const detail=bank!=="caixa"&&a.official?getGoStudyDetail(g.m.numero,a.id,a.ids):undefined;return {...a,detail,displayTitle:detail?.source==="incidence-map"?a.displayTitle:detail?.title??a.displayTitle};})
    .filter(a=>!query||normalize(name+" "+a.displayTitle+" "+a.searchText).includes(query));
   return {...g,m:{...g.m,titulo_central:name},topics};
  }).filter(g=>g.topics.length>0);
@@ -56,7 +56,7 @@ function EditalPage(){
   <p className="text-sm text-muted-foreground">{bank==="bb"?"TJGO 2021 · Analista Judiciário – Área de Apoio Judiciário e Administrativo":bank==="caixa"?"TJDFT 2022 · Técnico Judiciário – Área Administrativa":"TJGO 2021 · Analista Judiciário – Área de Apoio Judiciário e Administrativo | TJDFT 2022 · Técnico Judiciário – Área Administrativa"}</p></header>
   <BankExamSelector/>
   <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar matéria ou assunto..." aria-label="Buscar assuntos"/>
-  {bank!=="caixa"&&<p className="text-xs text-muted-foreground">Detalhes do material enviado: 30 assuntos completos importados. Os demais permanecem com o conteúdo oficial já cadastrado.</p>}
+  {bank!=="caixa"&&<p className="text-xs text-muted-foreground">30 assuntos importados do material enviado. Em História e Geografia de Goiás, os detalhes disponíveis provêm do Mapa de Incidência. Os demais mantêm o conteúdo oficial.</p>}
   {catalog.isPending&&<p>Carregando edital...</p>}{catalog.isError&&<p role="alert">Erro ao carregar o catálogo.</p>}
   {progress.isError&&<p role="alert" className="text-destructive text-sm">Não foi possível carregar o progresso. {String(progress.error)}</p>}
   <Accordion type="multiple" className="space-y-3">
@@ -79,14 +79,14 @@ function EditalPage(){
           <span className="shrink-0 text-xs text-muted-foreground">{progress.isError?"Indisponível":status}</span>
          </summary>
          <div className="mt-3 space-y-4 pl-6">
-          {a.detail?<section className="space-y-2"><h3 className="text-xs font-semibold text-amber-800 dark:text-amber-300">Subtópico(s) de Maior Incidência</h3><ul className="list-disc space-y-1 pl-4 text-sm">{a.detail.subtopics.map((s,i)=><li key={i}>{s}</li>)}</ul></section>:bank!=="caixa"&&a.official?<p className="text-xs text-muted-foreground">Detalhes não disponíveis no trecho do documento recebido.</p>:null}
+          {a.detail?<section className="space-y-2">{a.detail.source==="incidence-map"&&<p className="text-xs text-muted-foreground">Fonte: Mapa de Incidência — Instituto Verbena</p>}<h3 className="text-xs font-semibold text-amber-800 dark:text-amber-300">Subtópico(s) de Maior Incidência</h3><ul className="list-disc space-y-1 pl-4 text-sm">{a.detail.subtopics.map((s,i)=><li key={i}>{s}</li>)}</ul></section>:bank!=="caixa"&&a.official?<p className="text-xs text-muted-foreground">Detalhes não disponíveis no trecho do documento recebido.</p>:null}
           <div className="flex flex-wrap items-center gap-3">
            <label className="flex items-center gap-2 text-sm"><Checkbox checked={completed} disabled={completed||progress.isPending||progress.isError||action.isPending} onCheckedChange={value=>{if(value===true)action.mutate({matter:m.numero,ids:a.ids,kind:"complete"});}}/>Concluído</label>
            <Button asChild size="sm" variant="outline"><Link to="/app/study">Bora Estudar</Link></Button>
            <Button size="sm" variant="outline" disabled={action.isPending} onClick={()=>action.mutate({matter:m.numero,ids:a.ids,kind:"review"})}>Agendar revisões</Button>
            <Button asChild size="sm" variant="outline"><Link to="/app/reviews">Revisões</Link></Button>
           </div>
-          {a.detail?.charge&&<Card className="border-l-4 border-l-amber-400 bg-muted/30 p-3"><h3 className="mb-1 text-xs font-semibold">Detalhamento da Cobrança</h3><p className="text-sm leading-relaxed">{a.detail.charge}</p></Card>}
+          {a.detail?.charge&&<Card className="border-l-4 border-l-amber-400 bg-muted/30 p-3"><h3 className="mb-1 text-xs font-semibold">Detalhamento da Cobrança</h3><p className="whitespace-pre-line text-sm leading-relaxed">{a.detail.charge}</p></Card>}
          </div>
         </details>
        </li>;

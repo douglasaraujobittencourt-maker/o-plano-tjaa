@@ -271,7 +271,7 @@ test("Accountability e Indicadores recebem a etiqueta Verbena pelo mapa, sem nov
 });
 
 
-import {cleanGoRows,cleanGoNames,cleanGoTitle} from "./tjgo-clean-syllabus";
+import {cleanGoRows,cleanGoNames,cleanGoTitle,groupCleanSyllabus} from "./tjgo-clean-syllabus";
 test("edital limpo mantém sequência e IDs oficiais do TJGO",()=>{
  const groups=filteredEditalGroups(tribunalCatalog,"bb").filter(g=>cleanGoNames[g.m.numero]);
  expect(groups.map(g=>g.m.numero)).toEqual([202,206,205,204,203,201]);
@@ -295,4 +295,23 @@ test("etiqueta solicitada somente em Administração Pública, todos os cinco te
   for(const g of groups.filter(g=>g.m.numero!==201))for(const a of g.all)expect(adminVerbenaMarks(g.m.numero,a.id,bank)).toEqual([]);
  }
  for(const g of filteredEditalGroups(tribunalCatalog,"caixa"))for(const a of g.all)expect(adminVerbenaMarks(g.m.numero,a.id,"caixa")).toEqual([]);
+});
+
+
+test("edital reúne todos os fragmentos oficiais sem perder IDs ou modificar o texto",()=>{
+ const groups=filteredEditalGroups(tribunalCatalog,"bb").filter(g=>cleanGoNames[g.m.numero]);
+ const expectedCounts={201:19,202:26,203:16,204:13,205:5,206:9};
+ for(const g of groups){
+  const rows=groupCleanSyllabus(g.m.numero,g.all,true);
+  expect(rows.flatMap(r=>r.ids)).toEqual(g.all.map(a=>a.id));
+  expect(rows.length).toBe(expectedCounts[g.m.numero]);
+  expect(rows.map(r=>r.displayTitle).join(" ")).toBe(cleanGoRows[g.m.numero].map(r=>r[1]).join(" "));
+  expect(rows.every(r=>!/[,:;]$/.test(r.displayTitle))).toBe(true);
+  expect(rows.every(r=>(r.displayTitle.match(/\(/g)??[]).length===(r.displayTitle.match(/\)/g)??[]).length)).toBe(true);
+ }
+ const pt=groups.find(g=>g.m.numero===202);
+ const text=groupCleanSyllabus(202,pt.all,true).find(r=>r.id===20203);
+ expect(text.ids).toEqual([20203,20219]);
+ expect(text.displayTitle).toBe("Organização do texto: Fatores de textualidade (coesão, coerência, intertextualidade, informatividade, intencionalidade, aceitabilidade, situacionalidade).");
+ for(const g of filteredEditalGroups(tribunalCatalog,"caixa"))expect(groupCleanSyllabus(g.m.numero,g.all,false).flatMap(r=>r.ids)).toEqual(g.all.map(a=>a.id));
 });

@@ -430,3 +430,20 @@ export const cleanGoContinuation:ReadonlySet<number> = new Set([20219,20221,2060
 export function cleanGoTitle(matter:number,id:number):string|undefined {
  return cleanGoRows[matter]?.find(row=>row[0]===id)?.[1];
 }
+
+// Reúne fragmentos contíguos do texto oficial numa única linha visual.
+// Todos os IDs originais permanecem disponíveis para o espelho de progresso.
+export function groupCleanSyllabus<T extends {id:number;topico_central:string}>(matter:number,items:readonly T[],useGoText:boolean){
+ const groups:{id:number;ids:number[];displayTitle:string;searchText:string;official:boolean}[]=[];
+ for(const item of items){
+  const literal=useGoText?cleanGoTitle(matter,item.id):undefined;
+  const title=literal??item.topico_central;
+  const previous=groups[groups.length-1];
+  if(literal!==undefined&&cleanGoContinuation.has(item.id)&&previous?.official){
+   previous.ids.push(item.id);
+   previous.displayTitle+=" "+title;
+   previous.searchText+=" "+item.topico_central;
+  }else groups.push({id:item.id,ids:[item.id],displayTitle:title,searchText:item.topico_central,official:literal!==undefined});
+ }
+ return groups.map(g=>({...g,displayTitle:g.displayTitle.replace(/^\p{Ll}/u,initial=>initial.toLocaleUpperCase("pt-BR"))}));
+}

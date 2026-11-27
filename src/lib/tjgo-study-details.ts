@@ -1,4 +1,4 @@
-// Transcrição do material enviado: trecho inicial e PDF mapeamento-completo-edital-tjgo-2021, páginas 12–13 (História e Geografia).
+// Transcrição do material enviado: trecho inicial, Português completo (páginas 5–8) e História e Geografia (páginas 12–13).
 // Não preencher os detalhes ausentes por inferência. Chave composta preserva referências entre matérias.
 export type GoStudyDetail = {title:string;subtopics:readonly string[];charge:string|null};
 export const goStudyDetails:Readonly<Record<string,GoStudyDetail>> = {
@@ -279,6 +279,125 @@ export const goStudyDetails:Readonly<Record<string,GoStudyDetail>> = {
       "Etnodesenvolvimento e Desafios Socioambientais em Territórios Quilombolas."
     ],
     "charge": "Projetos de sustentabilidade, preservação do meio ambiente e incentivo ao turismo comunitário nos territórios Kalunga localizados no Nordeste de Goiás."
+  },
+  "202:20204": {
+    "title": "Sequências textuais: descritiva, narrativa, argumentativa, injuntiva, dialogal",
+    "subtopics": [
+      "Predomínio de Sequências Argumentativas em Artigos e Ensaios."
+    ],
+    "charge": "Distinção prática entre a sequência argumentativa (cujo objetivo é defender um ponto de vista e convencer o leitor) e as sequências descritivas, narrativas ou injuntivas presentes em trechos do mesmo texto."
+  },
+  "202:20222": {
+    "title": "Tipos de argumento",
+    "subtopics": [
+      "Argumento de Autoridade e Argumentação por Causa/Consequência."
+    ],
+    "charge": "Identificação das estratégias persuasivas utilizadas pelo autor para respaldar a tese (citações de especialistas, dados estatísticos ou nexos causais)."
+  },
+  "202:20223": {
+    "title": "Funcionalidade e características dos gêneros textuais oficiais: ofício, memorando, e-mail, carta comercial, aviso etc.",
+    "subtopics": [
+      "Atributos da Redação Oficial (Clareza, Concisão, Impessoalidade e Uso do Padrão Culto)."
+    ],
+    "charge": "Conformidade com o Manual de Redação da Presidência da República, uniformidade do fecho e adequação dos pronomes de tratamento."
+  },
+  "202:20206": {
+    "title": "Uso dos pronomes",
+    "subtopics": [
+      "Emprego Anafórico e Catafórico dos Demonstrativos (Este/Esse/Isto/Isso)."
+    ],
+    "charge": "Uso de este/isto para o que vai ser dito ou elemento imediatamente próximo, e esse/isso para o que já foi mencionado no texto."
+  },
+  "202:20215": {
+    "title": "Pontuação",
+    "subtopics": [
+      "Emprego da Vírgula pela Inversão da Ordem Direta da Frase."
+    ],
+    "charge": "Justificativa sintática da vírgula pelo deslocamento de adjuntos adverbiais longos ou orações subordinadas adverbiais antepostas à oração principal."
+  },
+  "202:20224": {
+    "title": "Características dos diferentes discursos (jornalístico, político, acadêmico, publicitário, literário, científico etc.)",
+    "subtopics": [
+      "Marcas de Persuasão nos Discursos Publicitário e Jornalístico."
+    ],
+    "charge": "Identificação do grau de subjetividade, adjetivação e escolha lexical direcionada ao público-alvo de cada discursos."
+  },
+  "202:20209": {
+    "title": "Organização da frase: Processos de coordenação e de subordinação",
+    "subtopics": [
+      "Sintaxe do Período Composto — Orações Adjetivas e Adverbiais."
+    ],
+    "charge": "Diferenciação semântico-gramatical entre orações subordinadas adjetivas restritivas (sem vírgulas) e explicativas (com vírgulas), além do valor lógico de orações adverbiais causais, condicionais e concessivas."
+  },
+  "202:20225": {
+    "title": "Verbos que constituem predicado e verbos que não constituem predicado",
+    "subtopics": [
+      "Verbos Nocionais vs. Verbos de Ligação (Predicado Verbal, Nominal e Verbo-Nominal)."
+    ],
+    "charge": "Análise do papel sintático dos verbos na estruturação do predicado e na atribuição de predicativos ao sujeito ou ao objeto."
+  },
+  "202:20208": {
+    "title": "Tempos e modos verbais",
+    "subtopics": [
+      "Emprego do Modo Subjuntivo e Correlação Verbal."
+    ],
+    "charge": "Articulação harmônica entre tempos verbais no período composto (ex.: imperfeito do subjuntivo + futuro do pretérito do indicativo)."
+  },
+  "202:20210": {
+    "title": "Concordância verbal e nominal",
+    "subtopics": [
+      "Concordância Verbal com Sujeito Composto, Expressões Partitivas e Partícula Passivadora (se)."
+    ],
+    "charge": "Regras de concordância em voz passiva sintética (ex.: \"Vende-se casa\" vs. \"Vendem-se casas\") e com expressões como \"a maioria de\", \"grande parte de\"."
+  },
+  "202:20211": {
+    "title": "Regência dos nomes e dos verbos",
+    "subtopics": [
+      "Regência Verbal associada ao Emprego do Acento Grave de Crase."
+    ],
+    "charge": "Verificação da exigência de preposição pelo verbo antecedente combinada com a presença de artigo feminino no termo regido."
+  },
+  "202:20226": {
+    "title": "Constituição e funcionalidade do Sujeito",
+    "subtopics": [
+      "Identificação do Sujeito Indeterminado e Orações sem Sujeito (Verbos Impessoais)."
+    ],
+    "charge": "Casos de impessoalidade dos verbos haver (no sentido de existir/ocorrer) e fazer (indicando tempo decorrido), mantendo-se obrigatoriamente na 3ª pessoa do singular."
+  },
+  "202:20205": {
+    "title": "Classes de palavras",
+    "subtopics": [
+      "Valor Sintático-Semântico das Conjunções Coordenativas e Subordinativas."
+    ],
+    "charge": "Reconhecimento do valor lógico introduzido por conectivos como contudo, todavia, porquanto, conquanto, visto que, à medida que."
+  },
+  "202:20212": {
+    "title": "Formação das palavras: Composição, derivação",
+    "subtopics": [
+      "Derivação Sufixal e Significado de Radicais Técnicos."
+    ],
+    "charge": "Análise morfológica de sufixos formadores de substantivos/adjetivos e compreensão de radicais gregos/latinos (ex.: o sufixo -metria indicando medição no termo \"Jurimetria\")."
+  },
+  "202:20213": {
+    "title": "Ortografia oficial, fonemas e acentuação gráfica",
+    "subtopics": [
+      "Regras Formais de Acentuação Gráfica (Proparoxítonas, Paroxítonas e Oxítonas)."
+    ],
+    "charge": "Exigência de justificativa gramatical para o uso do acento gráfico (ex.: a regra de que todas as proparoxítonas são acentuadas)."
+  },
+  "202:20229": {
+    "title": "Variação linguística: estilística, sociocultural, geográfica, histórica",
+    "subtopics": [
+      "Marcas de Variação Sociocultural e Geográfica no Texto."
+    ],
+    "charge": "Identificação de dialetos, regionalismos ou jargões profissionais e o respeito à adequação contextual da linguagem."
+  },
+  "202:20216": {
+    "title": "Variação entre modalidades da língua (fala e escrita), norma e uso",
+    "subtopics": [
+      "Distinção entre Registro Informal/Oralidade e Padrão Formulto Escrito."
+    ],
+    "charge": "Questões exigindo a reescrita de trechos informais para adequação estrita às regras da gramática normativa."
   }
 };
 export const goStudyWeights:Readonly<Record<number,{questions:number;weight:number;points:number}>> = {

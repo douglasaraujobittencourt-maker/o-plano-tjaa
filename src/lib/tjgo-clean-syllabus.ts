@@ -433,13 +433,16 @@ export function cleanGoTitle(matter:number,id:number):string|undefined {
 
 // Reúne fragmentos contíguos do texto oficial numa única linha visual.
 // Todos os IDs originais permanecem disponíveis para o espelho de progresso.
-export function groupCleanSyllabus<T extends {id:number;topico_central:string}>(matter:number,items:readonly T[],useGoText:boolean){
+export function groupCleanSyllabus<T extends {id:number;topico_central:string}>(matter:number,items:readonly T[],useGoText:boolean,matchStudyDocument=false){
  const groups:{id:number;ids:number[];displayTitle:string;searchText:string;official:boolean}[]=[];
  for(const item of items){
   const literal=useGoText?cleanGoTitle(matter,item.id):undefined;
   const title=literal??item.topico_central;
   const previous=groups[groups.length-1];
-  if(literal!==undefined&&cleanGoContinuation.has(item.id)&&previous?.official){
+  // Português: o documento reúne formação/composição e ortografia/fonemas/acentuação.
+  // Agrupamento exclusivamente visual; nenhum ID de estudo é eliminado.
+  const documentContinuation=matchStudyDocument&&matter===202&&[20227,20228,20214].includes(item.id);
+  if(literal!==undefined&&(cleanGoContinuation.has(item.id)||documentContinuation)&&previous?.official){
    previous.ids.push(item.id);
    previous.displayTitle+=" "+title;
    previous.searchText+=" "+item.topico_central;

@@ -46,7 +46,7 @@ function EditalPage(){
  .filter(g=>bank!=="bb"||cleanGoNames[g.m.numero]!==undefined)
  .map(g=>{
   const name=bank!=="caixa"?(cleanGoNames[g.m.numero]??g.m.titulo_central):g.m.titulo_central;
-  const topics=groupCleanSyllabus(g.m.numero,g.all,bank!=="caixa")
+  const topics=groupCleanSyllabus(g.m.numero,g.all,bank!=="caixa",true)
    .map(a=>{const detail=bank!=="caixa"&&a.official?getGoStudyDetail(g.m.numero,a.id):undefined;return {...a,detail,displayTitle:detail?.title??a.displayTitle};})
    .filter(a=>!query||normalize(name+" "+a.displayTitle+" "+a.searchText).includes(query));
   return {...g,m:{...g.m,titulo_central:name},topics};
@@ -56,7 +56,7 @@ function EditalPage(){
   <p className="text-sm text-muted-foreground">{bank==="bb"?"TJGO 2021 · Analista Judiciário – Área de Apoio Judiciário e Administrativo":bank==="caixa"?"TJDFT 2022 · Técnico Judiciário – Área Administrativa":"TJGO 2021 · Analista Judiciário – Área de Apoio Judiciário e Administrativo | TJDFT 2022 · Técnico Judiciário – Área Administrativa"}</p></header>
   <BankExamSelector/>
   <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar matéria ou assunto..." aria-label="Buscar assuntos"/>
-  {bank!=="caixa"&&<p className="text-xs text-muted-foreground">39 assuntos importados do material enviado, incluindo os nove assuntos de História e Geografia de Goiás (páginas 12 e 13). Os demais mantêm o conteúdo oficial.</p>}
+  {bank!=="caixa"&&<p className="text-xs text-muted-foreground">56 assuntos importados do material enviado. Administração Pública, Legislação Complementar, Língua Portuguesa e História e Geografia de Goiás estão completas. Os demais mantêm o conteúdo oficial.</p>}
   {catalog.isPending&&<p>Carregando edital...</p>}{catalog.isError&&<p role="alert">Erro ao carregar o catálogo.</p>}
   {progress.isError&&<p role="alert" className="text-destructive text-sm">Não foi possível carregar o progresso. {String(progress.error)}</p>}
   <Accordion type="multiple" className="space-y-3">

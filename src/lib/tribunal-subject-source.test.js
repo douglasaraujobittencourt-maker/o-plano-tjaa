@@ -342,13 +342,13 @@ test("matriz explícita marca apenas as linhas oficiais solicitadas, sem alterar
 
 
 import {goStudyDetails,getGoStudyDetail,goStudyWeights} from "./tjgo-study-details";
-test("importa integralmente os 39 assuntos disponíveis, por matéria e ID existente",()=>{
- expect(Object.keys(goStudyDetails).length).toBe(39);
+test("importa integralmente os 56 assuntos disponíveis, por matéria e ID existente",()=>{
+ expect(Object.keys(goStudyDetails).length).toBe(56);
  const go=filteredEditalGroups(tribunalCatalog,"bb");
  for(const [key,detail] of Object.entries(goStudyDetails)){
   const [matter,id]=key.split(":").map(Number);
   const group=go.find(g=>g.m.numero===matter);
-  expect(groupCleanSyllabus(matter,group.all,true).some(r=>r.id===id)).toBe(true);
+  expect(groupCleanSyllabus(matter,group.all,true,true).some(r=>r.id===id)).toBe(true);
   expect(detail.subtopics.length).toBeGreaterThan(0);
  }
  expect(getGoStudyDetail(205,20501).subtopics.length).toBe(4);
@@ -356,7 +356,7 @@ test("importa integralmente os 39 assuntos disponíveis, por matéria e ID exist
  expect(getGoStudyDetail(205,20501).charge).toBeNull();
  expect(getGoStudyDetail(205,20413).charge).toBeNull();
  expect(getGoStudyDetail(204,20413)).toBeUndefined();
- expect(getGoStudyDetail(202,20204)).toBeUndefined();
+ expect(getGoStudyDetail(202,20204).subtopics.length).toBe(1);
  expect(Object.values(goStudyWeights).reduce((sum,m)=>sum+m.points,0)).toBe(100);
 });
 
@@ -432,4 +432,142 @@ test("História e Geografia transcreve os nove assuntos das páginas 12 e 13 do 
  expect(rows.map(r=>r.id)).toEqual([20601,20602,20607,20609,20610,20611,20612,20613,20614]);
  expect(rows.map(r=>getGoStudyDetail(206,r.id))).toEqual(rows.map(r=>expected["206:"+r.id]));
  expect(rows.every(r=>getGoStudyDetail(206,r.id)?.subtopics.length===1&&getGoStudyDetail(206,r.id)?.charge)).toBe(true);
+});
+
+
+test("Português apresenta exatamente os 23 assuntos do documento, com todos os subtópicos e cobranças, sem perder IDs",()=>{
+ for(const bank of ["bb","bnb"]){
+  const group=filteredEditalGroups(tribunalCatalog,bank).find(g=>g.m.numero===202);
+  const displayed=groupCleanSyllabus(202,group.all,true,true);
+  const go=displayed.filter(r=>r.official);
+  expect(go.map(r=>r.id)).toEqual([20201,20217,20218,20202,20203,20220,20204,20222,20223,20206,20215,20224,20209,20225,20208,20210,20211,20226,20205,20212,20213,20229,20216]);
+  expect(go.every(r=>getGoStudyDetail(202,r.id)?.subtopics.length===1&&getGoStudyDetail(202,r.id)?.charge)).toBe(true);
+  expect(displayed.flatMap(r=>r.ids)).toEqual(group.all.map(a=>a.id));
+  expect(go.find(r=>r.id===20212).ids).toEqual([20212,20227]);
+  expect(go.find(r=>r.id===20213).ids).toEqual([20213,20228,20214]);
+  expect(getGoStudyDetail(202,20229).title).toBe("Variação linguística: estilística, sociocultural, geográfica, histórica");
+  expect(getGoStudyDetail(202,20216).title).toBe("Variação entre modalidades da língua (fala e escrita), norma e uso");
+ }
+ const expected={
+  "202:20204": {
+    "title": "Sequências textuais: descritiva, narrativa, argumentativa, injuntiva, dialogal",
+    "subtopics": [
+      "Predomínio de Sequências Argumentativas em Artigos e Ensaios."
+    ],
+    "charge": "Distinção prática entre a sequência argumentativa (cujo objetivo é defender um ponto de vista e convencer o leitor) e as sequências descritivas, narrativas ou injuntivas presentes em trechos do mesmo texto."
+  },
+  "202:20222": {
+    "title": "Tipos de argumento",
+    "subtopics": [
+      "Argumento de Autoridade e Argumentação por Causa/Consequência."
+    ],
+    "charge": "Identificação das estratégias persuasivas utilizadas pelo autor para respaldar a tese (citações de especialistas, dados estatísticos ou nexos causais)."
+  },
+  "202:20223": {
+    "title": "Funcionalidade e características dos gêneros textuais oficiais: ofício, memorando, e-mail, carta comercial, aviso etc.",
+    "subtopics": [
+      "Atributos da Redação Oficial (Clareza, Concisão, Impessoalidade e Uso do Padrão Culto)."
+    ],
+    "charge": "Conformidade com o Manual de Redação da Presidência da República, uniformidade do fecho e adequação dos pronomes de tratamento."
+  },
+  "202:20206": {
+    "title": "Uso dos pronomes",
+    "subtopics": [
+      "Emprego Anafórico e Catafórico dos Demonstrativos (Este/Esse/Isto/Isso)."
+    ],
+    "charge": "Uso de este/isto para o que vai ser dito ou elemento imediatamente próximo, e esse/isso para o que já foi mencionado no texto."
+  },
+  "202:20215": {
+    "title": "Pontuação",
+    "subtopics": [
+      "Emprego da Vírgula pela Inversão da Ordem Direta da Frase."
+    ],
+    "charge": "Justificativa sintática da vírgula pelo deslocamento de adjuntos adverbiais longos ou orações subordinadas adverbiais antepostas à oração principal."
+  },
+  "202:20224": {
+    "title": "Características dos diferentes discursos (jornalístico, político, acadêmico, publicitário, literário, científico etc.)",
+    "subtopics": [
+      "Marcas de Persuasão nos Discursos Publicitário e Jornalístico."
+    ],
+    "charge": "Identificação do grau de subjetividade, adjetivação e escolha lexical direcionada ao público-alvo de cada discursos."
+  },
+  "202:20209": {
+    "title": "Organização da frase: Processos de coordenação e de subordinação",
+    "subtopics": [
+      "Sintaxe do Período Composto — Orações Adjetivas e Adverbiais."
+    ],
+    "charge": "Diferenciação semântico-gramatical entre orações subordinadas adjetivas restritivas (sem vírgulas) e explicativas (com vírgulas), além do valor lógico de orações adverbiais causais, condicionais e concessivas."
+  },
+  "202:20225": {
+    "title": "Verbos que constituem predicado e verbos que não constituem predicado",
+    "subtopics": [
+      "Verbos Nocionais vs. Verbos de Ligação (Predicado Verbal, Nominal e Verbo-Nominal)."
+    ],
+    "charge": "Análise do papel sintático dos verbos na estruturação do predicado e na atribuição de predicativos ao sujeito ou ao objeto."
+  },
+  "202:20208": {
+    "title": "Tempos e modos verbais",
+    "subtopics": [
+      "Emprego do Modo Subjuntivo e Correlação Verbal."
+    ],
+    "charge": "Articulação harmônica entre tempos verbais no período composto (ex.: imperfeito do subjuntivo + futuro do pretérito do indicativo)."
+  },
+  "202:20210": {
+    "title": "Concordância verbal e nominal",
+    "subtopics": [
+      "Concordância Verbal com Sujeito Composto, Expressões Partitivas e Partícula Passivadora (se)."
+    ],
+    "charge": "Regras de concordância em voz passiva sintética (ex.: \"Vende-se casa\" vs. \"Vendem-se casas\") e com expressões como \"a maioria de\", \"grande parte de\"."
+  },
+  "202:20211": {
+    "title": "Regência dos nomes e dos verbos",
+    "subtopics": [
+      "Regência Verbal associada ao Emprego do Acento Grave de Crase."
+    ],
+    "charge": "Verificação da exigência de preposição pelo verbo antecedente combinada com a presença de artigo feminino no termo regido."
+  },
+  "202:20226": {
+    "title": "Constituição e funcionalidade do Sujeito",
+    "subtopics": [
+      "Identificação do Sujeito Indeterminado e Orações sem Sujeito (Verbos Impessoais)."
+    ],
+    "charge": "Casos de impessoalidade dos verbos haver (no sentido de existir/ocorrer) e fazer (indicando tempo decorrido), mantendo-se obrigatoriamente na 3ª pessoa do singular."
+  },
+  "202:20205": {
+    "title": "Classes de palavras",
+    "subtopics": [
+      "Valor Sintático-Semântico das Conjunções Coordenativas e Subordinativas."
+    ],
+    "charge": "Reconhecimento do valor lógico introduzido por conectivos como contudo, todavia, porquanto, conquanto, visto que, à medida que."
+  },
+  "202:20212": {
+    "title": "Formação das palavras: Composição, derivação",
+    "subtopics": [
+      "Derivação Sufixal e Significado de Radicais Técnicos."
+    ],
+    "charge": "Análise morfológica de sufixos formadores de substantivos/adjetivos e compreensão de radicais gregos/latinos (ex.: o sufixo -metria indicando medição no termo \"Jurimetria\")."
+  },
+  "202:20213": {
+    "title": "Ortografia oficial, fonemas e acentuação gráfica",
+    "subtopics": [
+      "Regras Formais de Acentuação Gráfica (Proparoxítonas, Paroxítonas e Oxítonas)."
+    ],
+    "charge": "Exigência de justificativa gramatical para o uso do acento gráfico (ex.: a regra de que todas as proparoxítonas são acentuadas)."
+  },
+  "202:20229": {
+    "title": "Variação linguística: estilística, sociocultural, geográfica, histórica",
+    "subtopics": [
+      "Marcas de Variação Sociocultural e Geográfica no Texto."
+    ],
+    "charge": "Identificação de dialetos, regionalismos ou jargões profissionais e o respeito à adequação contextual da linguagem."
+  },
+  "202:20216": {
+    "title": "Variação entre modalidades da língua (fala e escrita), norma e uso",
+    "subtopics": [
+      "Distinção entre Registro Informal/Oralidade e Padrão Formulto Escrito."
+    ],
+    "charge": "Questões exigindo a reescrita de trechos informais para adequação estrita às regras da gramática normativa."
+  }
+};
+ for(const [key,detail] of Object.entries(expected))expect(goStudyDetails[key]).toEqual(detail);
 });

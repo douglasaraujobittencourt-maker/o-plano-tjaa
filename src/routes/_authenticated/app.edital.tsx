@@ -47,8 +47,7 @@ function EditalPage(){
       {topics.map(a=>{
        const scope=a.reference?"Referência oficial compartilhada":a.custom?"Personalizado":a.supplemental?`Complemento TJGO · ${scopeLabel(a.escopo)}`:scopeLabel(a.escopo);
        const rawDetails=filteredEditalDetails(m.numero,a,m.titulo_central,bank);
-       const adminThemes=m.numero===201?strictMarkedDetails(m.numero,a,rawDetails).filter(d=>d.bank==="verbena"&&d.tribunal==="tjgo"&&!d.contextOnly):[];
-       const details=rawDetails.filter(d=>d.subtopics.length>0||adminThemes.some(t=>t.key===d.key));
+       const details=rawDetails;
        const marked= strictMarkedDetails(m.numero,a,details);
        const origin=originFromDetails(marked);
        const marker=origin?incidencePresentation[origin]:null;
@@ -58,16 +57,19 @@ function EditalPage(){
          <p className={marker?`text-sm font-semibold ${marker.text}`:"text-sm"}>{a.topico_central}{marker&&<span className={`ml-2 inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${marker.badge}`}>{marker.label}</span>}</p>
          <Badge variant="outline" className="mt-1">{scope}</Badge>
          {note&&<p className="mt-1 text-xs text-muted-foreground">{note}</p>}
-         {details.length>0&&<details className="mt-2 text-xs"><summary className="cursor-pointer font-medium text-muted-foreground">{m.numero===201?"Temas e subtópicos do mapa de incidência":"Subtópicos do mapa de incidência"}</summary>
-          <div className="mt-2 space-y-2">{details.map(d=><div key={d.key} className="rounded-md border p-2">
-           <p className={adminThemes.some(t=>t.key===d.key)?`font-semibold ${incidencePresentation.verbena.text}`:"font-semibold"}>{d.theme} · {d.approximate?"≈ ":""}{d.percent}% do tema{adminThemes.some(t=>t.key===d.key)&&<span className={`ml-2 inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${incidencePresentation.verbena.badge}`}>Instituto Verbena</span>}</p>
+         {details.length>0&&<details className="mt-2 text-xs"><summary className="cursor-pointer font-medium text-muted-foreground">Temas e subtópicos do mapa de incidência</summary>
+          <div className="mt-2 space-y-2">{details.map(d=>{
+           const themeOrigin=originFromDetails(details.filter(x=>x.sourceMatter===d.sourceMatter&&x.theme===d.theme));
+           const themeMarker=themeOrigin?incidencePresentation[themeOrigin]:null;
+           return <div key={d.key} className="rounded-md border p-2">
+           {d.sourceMatter!==m.numero&&<p className="text-muted-foreground">Referência de Legislação Complementar</p>}
+           <p className={themeMarker?`font-semibold ${themeMarker.text}`:"font-semibold"}>{d.theme} · {d.approximate?"≈ ":""}{d.percent}% do tema{themeMarker&&<span className={`ml-2 inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${themeMarker.badge}`}>{themeMarker.label}</span>}</p>
            {d.subtopics.map(s=>{
-            const directlyMarked=marked.some(x=>x.key===d.key&&x.subtopics.some(y=>y.key===s.key));
-            const subOrigin=directlyMarked?originFromDetails(marked.filter(x=>x.subtopics.some(y=>y.title===s.title))):null;
+            const subOrigin=originFromDetails(details.filter(x=>x.sourceMatter===d.sourceMatter&&x.subtopics.some(y=>y.title===s.title)));
             const subMarker=subOrigin?incidencePresentation[subOrigin]:null;
             return <div key={s.key} className="mt-2"><p className={subMarker?`font-medium ${subMarker.text}`:"font-medium"}>{s.title}{subMarker&&<span className={`ml-2 inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${subMarker.badge}`}>{subMarker.label}</span>}</p><p className="text-muted-foreground">{s.description}</p></div>;
            })}
-          </div>)}</div>
+          </div>})}</div>
          </details>}
         </div>
         <span className="text-xs text-muted-foreground">{progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)}</span>

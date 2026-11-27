@@ -563,3 +563,12 @@ export function incidenceSyllabusRank(subject:string,title:string,tribunal:Tribu
 export function orderIncidenceItems<T extends {title:string}>(items:readonly T[],subject:string,tribunal:Tribunal):T[] {
  return [...items].sort((a,b)=>incidenceSyllabusRank(subject,a.title,tribunal)-incidenceSyllabusRank(subject,b.title,tribunal));
 }
+
+// Equivalências revisadas, apenas para a disciplina informada. Ignora prefixos editoriais.
+export function incidenceMatchKey(value:string):string {
+ return normalizeIncidenceTitle(value.replace(/^\s*(?:tema|subt[oó]pico|assunto)\s*\d+(?:[.\-]\d+)*\s*[:.\-–—)]\s*/iu,""));
+}
+export function reviewedIncidenceTitles(subject:string,title:string):readonly string[]{
+ const source=incidenceMatchKey(title);
+ return [source,...(aliasIndex.get(subjectKey(subject))?.get(source)??[])];
+}

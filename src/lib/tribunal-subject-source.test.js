@@ -224,3 +224,31 @@ test("grifos do edital exigem subtópico direto no mapa da mesma matéria e banc
  expect(originFromDetails(strictMarkedDetails(201,example,[...valid,fgvDetail],maps))).toBe("both");
  expect(strictMarkedDetails(203,example,valid)).toEqual([]);
 });
+
+
+test("fonte compartilhada sincroniza temas e subtópicos de todas as matérias e bancos",()=>{
+ const joint=filteredEditalGroups(tribunalCatalog,"bnb");
+ const get=(maps,bank="bnb")=>filteredEditalGroups(tribunalCatalog,bank).flatMap(g=>g.all.flatMap(a=>filteredEditalDetails(g.m.numero,a,g.m.titulo_central,bank,maps)));
+ const current=get(incidenceMaps);
+ expect(current.filter(d=>!d.contextOnly).length).toBe(23);
+ expect(new Set(current.flatMap(d=>d.subtopics.map(s=>s.key))).size).toBe(44);
+ const clone=JSON.parse(JSON.stringify(incidenceMaps));
+ const ap=clone.tjgo.verbena.subjects.find(s=>s.name==="Noções de Administração Pública");
+ ap.themes[0].title="Tema 1: Novo título";ap.themes[0].percent=26;
+ ap.themes[0].subtopics[0].title="Subtópico 1.1 — Novo título Weber";
+ const renamed=get(clone);expect(renamed.find(d=>d.theme==="Tema 1: Novo título").percent).toBe(26);
+ expect(renamed.some(d=>d.subtopics.some(s=>s.title==="Subtópico 1.1 — Novo título Weber"))).toBe(true);
+ ap.themes[0].percent=0;expect(get(clone).some(d=>d.theme==="Tema 1: Novo título")).toBe(false);
+ const map=JSON.parse(JSON.stringify(incidenceMaps.tjgo.verbena));
+ map.subjects=map.subjects.filter(s=>s.name==="Noções de Administração Pública");
+ delete map.subjects[0].themes[0].editalTopicIds;
+ map.subjects[0].themes[0].title="Tema 1: Paradigmas e Modelos da Gestao Publica";
+ delete map.subjects[0].themes[0].subtopics[0].editalTopicIds;
+ map.subjects[0].themes[0].subtopics[0].title="Subtópico 1.1 — Modelo Burocratico Weberiano";
+ const both={...incidenceMaps,tjgo:{...incidenceMaps.tjgo,fgv:map}};
+ const group=joint.find(g=>g.m.numero===201),topic=group.all.find(a=>a.id===20101);
+ expect(originFromDetails(filteredEditalDetails(201,topic,group.m.titulo_central,"bnb",both))).toBe("both");
+ expect(get(both,"caixa")).toEqual([]);
+ const wrong=JSON.parse(JSON.stringify(incidenceMaps));wrong.tjgo.verbena.subjects[0].themes[0].editalTopicIds=[20301];
+ expect(get(wrong).some(d=>d.theme==="Paradigmas e Modelos da Gestão Pública"&&!d.contextOnly)).toBe(false);
+});

@@ -315,3 +315,27 @@ test("edital reúne todos os fragmentos oficiais sem perder IDs ou modificar o t
  expect(text.displayTitle).toBe("Organização do texto: Fatores de textualidade (coesão, coerência, intertextualidade, informatividade, intencionalidade, aceitabilidade, situacionalidade).");
  for(const g of filteredEditalGroups(tribunalCatalog,"caixa"))expect(groupCleanSyllabus(g.m.numero,g.all,false).flatMap(r=>r.ids)).toEqual(g.all.map(a=>a.id));
 });
+
+
+import {isGoHighIncidence} from "./tjgo-high-incidence";
+test("matriz explícita marca apenas as linhas oficiais solicitadas, sem alterar agrupamento ou filtros",()=>{
+ const counts={"201":13,"202":21,"203":16,"204":13,"205":5,"206":7};
+ const go=filteredEditalGroups(tribunalCatalog,"bb").filter(g=>cleanGoNames[g.m.numero]);
+ for(const g of go){const rows=groupCleanSyllabus(g.m.numero,g.all,true);
+  expect(rows.filter(r=>isGoHighIncidence(g.m.numero,r,"bb")).length).toBe(counts[g.m.numero]);
+  expect(rows.every(r=>!isGoHighIncidence(g.m.numero,r,"caixa"))).toBe(true);
+ }
+ const rows=(m)=>groupCleanSyllabus(m,go.find(g=>g.m.numero===m).all,true);
+ expect(isGoHighIncidence(201,rows(201).find(r=>r.id===20108),"bb")).toBe(true);
+ expect(isGoHighIncidence(201,rows(201).find(r=>r.id===20112),"bb")).toBe(true);
+ expect(isGoHighIncidence(201,rows(201).find(r=>r.id===20118),"bb")).toBe(true);
+ expect(isGoHighIncidence(202,rows(202).find(r=>r.id===20203),"bb")).toBe(false);
+ expect(isGoHighIncidence(205,rows(205).find(r=>r.id===20502),"bb")).toBe(true);
+ expect(isGoHighIncidence(206,rows(206).find(r=>r.id===20610),"bb")).toBe(false);
+ expect(isGoHighIncidence(206,rows(206).find(r=>r.id===20614),"bb")).toBe(false);
+ expect(isGoHighIncidence(204,{ids:[20413],official:true},"bnb")).toBe(true);
+ expect(isGoHighIncidence(205,{ids:[20413],official:true},"bb")).toBe(true);
+ expect(isGoHighIncidence(201,{ids:[20101],official:false},"bnb")).toBe(false);
+ expect(isGoHighIncidence(203,{ids:[20101],official:true},"bb")).toBe(false);
+ for(const g of filteredEditalGroups(tribunalCatalog,"bnb"))for(const r of groupCleanSyllabus(g.m.numero,g.all,true))if(!r.official)expect(isGoHighIncidence(g.m.numero,r,"bnb")).toBe(false);
+});

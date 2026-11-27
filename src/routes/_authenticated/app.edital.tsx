@@ -10,6 +10,7 @@ import {BankExamSelector,useBankExam} from "@/components/bank-exam-provider";
 import {getEditalCatalog} from "@/lib/edital-catalog";
 import {filteredEditalGroups} from "@/lib/edital-view-filter";
 import {cleanGoNames,groupCleanSyllabus} from "@/lib/tjgo-clean-syllabus";
+import {isGoHighIncidence} from "@/lib/tjgo-high-incidence";
 import {getEtapasAutomaticasEdital,etapaDoAssunto} from "@/lib/edital-auto-progress";
 export const Route=createFileRoute("/_authenticated/app/edital")({head:()=>({meta:[{title:"Edital Verticalizado — TJGO e TJDFT | O Plano"}]}),component:EditalPage});
 
@@ -49,7 +50,7 @@ function EditalPage(){
        const status=distinct.length===1?distinct[0]:distinct.map(stage=>`${stages.filter(s=>s===stage).length} ${stage}`).join(" · ");
        return <li key={a.id} className="flex flex-wrap justify-between gap-2 py-3">
         <div className="min-w-[min(180px,100%)] flex-1">
-         <p className="text-sm">{a.displayTitle}</p>
+         <p className="text-sm">{a.displayTitle}{isGoHighIncidence(m.numero,a,bank)&&<span className="ml-2 inline-flex rounded-full border border-amber-400 bg-amber-100 px-2 py-0.5 align-middle text-[11px] font-semibold text-amber-950 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-200">Alta incidência - Instituto Verbena 🔥</span>}</p>
         </div>
         <span className="text-xs text-muted-foreground">{progress.isError?"Indisponível":status}</span>
        </li>;

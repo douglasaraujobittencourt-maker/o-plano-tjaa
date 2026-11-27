@@ -163,3 +163,26 @@ test("Administração Pública separa 11 vínculos, 5 temas, 9 subtópicos e pri
  const duplicate=[...rows,...rows];
  expect(summarizeMappedIncidence(duplicate)).toEqual(summarizeMappedIncidence(rows));
 });
+
+
+import {filteredEditalGroups,filteredEditalDetails} from "./edital-view-filter";
+test("filtros do edital excluem assuntos do tribunal oposto e unificam IDs sem duplicatas",()=>{
+ const get=bank=>filteredEditalGroups(tribunalCatalog,bank);
+ const go=get("bb"),df=get("caixa"),both=get("bnb");
+ const ids=groups=>groups.flatMap(g=>g.all.map(a=>a.id));
+ expect(go.map(g=>g.m.numero)).toEqual([202,206,205,204,203,201,214]);
+ expect(df.map(g=>g.m.numero)).toEqual([202,208,210,207,201,204,203,213,209,211,212,214]);
+ expect(go.flatMap(g=>g.all).every(a=>a.escopo!=="Só Caixa")).toBe(true);
+ expect(df.flatMap(g=>g.all).every(a=>a.escopo!=="Só BB")).toBe(true);
+ expect(ids(go)).not.toContain(20325);expect(ids(go)).not.toContain(20235);
+ expect(ids(df)).not.toContain(20413);expect(ids(df)).not.toContain(20501);
+ expect(ids(both).length).toBe(new Set(ids(both)).size);
+ expect([...new Set([...ids(go),...ids(df)])].sort((a,b)=>a-b)).toEqual(ids(both).sort((a,b)=>a-b));
+ expect(go.find(g=>g.m.numero===201).all.slice(0,4).map(a=>a.id)).toEqual([20107,20101,20108,20102]);
+ expect(df.find(g=>g.m.numero===202).all.slice(0,3).map(a=>a.id)).toEqual([20230,20204,20201]);
+ const children=(groups,bank)=>groups.flatMap(g=>g.all.flatMap(a=>filteredEditalDetails(g.m.numero,a,g.m.titulo_central,bank).flatMap(d=>d.subtopics.map(s=>s.key))));
+ expect(children(go,"bb").length).toBe(40);
+ expect(children(df,"caixa").length).toBe(0);
+ expect(children(both,"bnb").length).toBe(44);
+ expect(new Set(children(both,"bnb")).size).toBe(44);
+});

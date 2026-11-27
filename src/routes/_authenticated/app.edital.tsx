@@ -5,7 +5,7 @@ import {BookOpenCheck,ChevronDown} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Checkbox} from "@/components/ui/checkbox";
 import {toast} from "sonner";
-import {getSubjects,markEditalTopicsStudied,scheduleLessonReviews} from "@/lib/planner-api";
+import {getSubjects,markEditalTopicsStudied} from "@/lib/planner-api";
 import {topicsForSubject,subjectDefinition} from "@/lib/tribunal-subject-source";
 import {getGoStudyDetail,goStudyWeights} from "@/lib/tjgo-study-details";
 import {Card} from "@/components/ui/card";
@@ -23,7 +23,7 @@ function EditalPage(){
  const {bank}=useBankExam();
  const qc=useQueryClient();
  const action=useMutation({
-  mutationFn:async({matter,ids,kind}:{matter:number;ids:number[];kind:"complete"|"review"})=>{
+  mutationFn:async({matter,ids}:{matter:number;ids:number[]})=>{
    const subjects=await getSubjects();
    const targets=ids.map(id=>{
     const candidates=subjects.flatMap(s=>topicsForSubject(s,"bnb").filter(t=>t.id===id).map(t=>({subject:s,topic:t})));
@@ -32,10 +32,9 @@ function EditalPage(){
     return target;
    });
    for(const {subject,topic} of targets){
-    if(kind==="complete")await markEditalTopicsStudied(subject.id,[topic.id]);
-    else await scheduleLessonReviews(subject.id,topic.topico_central,topic.id);
+    await markEditalTopicsStudied(subject.id,[topic.id]);
    }
-  },onSuccess:async(_,v)=>{await qc.invalidateQueries();toast.success(v.kind==="complete"?"Assunto concluído.":"Revisões agendadas.");},onError:async(e)=>{await qc.invalidateQueries();toast.error(e instanceof Error?e.message:"Não foi possível atualizar o progresso.");}
+  },onSuccess:async()=>{await qc.invalidateQueries();toast.success("Assunto concluído.");},onError:async(e)=>{await qc.invalidateQueries();toast.error(e instanceof Error?e.message:"Não foi possível atualizar o progresso.");}
  });
  const [search,setSearch]=useState("");
  const catalog=useQuery({queryKey:["edital-catalog"],queryFn:getEditalCatalog,staleTime:0,refetchInterval:5000});
@@ -80,10 +79,8 @@ function EditalPage(){
          <div className="mt-3 space-y-4 pl-6">
           {a.detail?<section className="space-y-2"><h3 className="text-xs font-semibold text-amber-800 dark:text-amber-300">Subtópico(s) de Maior Incidência</h3><ul className="list-disc space-y-1 pl-4 text-sm">{a.detail.subtopics.map((s,i)=><li key={i}>{s}</li>)}</ul></section>:bank!=="caixa"&&a.official?<p className="text-xs text-muted-foreground">Detalhes não disponíveis no trecho do documento recebido.</p>:null}
           <div className="flex flex-wrap items-center gap-3">
-           <label className="flex items-center gap-2 text-sm"><Checkbox checked={completed} disabled={completed||progress.isPending||progress.isError||action.isPending} onCheckedChange={value=>{if(value===true)action.mutate({matter:m.numero,ids:a.ids,kind:"complete"});}}/>Concluído</label>
+           <label className="flex items-center gap-2 text-sm"><Checkbox checked={completed} disabled={completed||progress.isPending||progress.isError||action.isPending} onCheckedChange={value=>{if(value===true)action.mutate({matter:m.numero,ids:a.ids});}}/>Concluído</label>
            <Button asChild size="sm" variant="outline"><Link to="/app/study">Bora Estudar</Link></Button>
-           <Button size="sm" variant="outline" disabled={action.isPending} onClick={()=>action.mutate({matter:m.numero,ids:a.ids,kind:"review"})}>Agendar revisões</Button>
-           <Button asChild size="sm" variant="outline"><Link to="/app/reviews">Revisões</Link></Button>
           </div>
           {a.detail?.charge&&<Card className="border-l-4 border-l-amber-400 bg-muted/30 p-3"><h3 className="mb-1 text-xs font-semibold">Detalhamento da Cobrança</h3><p className="whitespace-pre-line text-sm leading-relaxed">{a.detail.charge}</p></Card>}
          </div>

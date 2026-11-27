@@ -339,3 +339,23 @@ test("matriz explícita marca apenas as linhas oficiais solicitadas, sem alterar
  expect(isGoHighIncidence(203,{ids:[20101],official:true},"bb")).toBe(false);
  for(const g of filteredEditalGroups(tribunalCatalog,"bnb"))for(const r of groupCleanSyllabus(g.m.numero,g.all,true))if(!r.official)expect(isGoHighIncidence(g.m.numero,r,"bnb")).toBe(false);
 });
+
+
+import {goStudyDetails,getGoStudyDetail,goStudyWeights} from "./tjgo-study-details";
+test("importa integralmente os 30 assuntos completos disponíveis, por matéria e ID existente",()=>{
+ expect(Object.keys(goStudyDetails).length).toBe(30);
+ const go=filteredEditalGroups(tribunalCatalog,"bb");
+ for(const [key,detail] of Object.entries(goStudyDetails)){
+  const [matter,id]=key.split(":").map(Number);
+  const group=go.find(g=>g.m.numero===matter);
+  expect(groupCleanSyllabus(matter,group.all,true).some(r=>r.id===id)).toBe(true);
+  expect(detail.subtopics.length).toBeGreaterThan(0);
+ }
+ expect(getGoStudyDetail(205,20501).subtopics.length).toBe(4);
+ expect(getGoStudyDetail(205,20413).subtopics.length).toBe(3);
+ expect(getGoStudyDetail(205,20501).charge).toBeNull();
+ expect(getGoStudyDetail(205,20413).charge).toBeNull();
+ expect(getGoStudyDetail(204,20413)).toBeUndefined();
+ expect(getGoStudyDetail(202,20204)).toBeUndefined();
+ expect(Object.values(goStudyWeights).reduce((sum,m)=>sum+m.points,0)).toBe(100);
+});

@@ -2,7 +2,9 @@
 import type {Catalog} from "./edital-caixa-bb-data";
 import type {BankExam} from "./bank-exams";
 import {officialTopicOrder,tribunalCatalog} from "./tribunal-catalog";
-import {auditGoTopics,goMatterOrder,goOrder,auditedTopicDetails,type AuditTopic,type AuditDetail} from "./tjgo-edital-audit";
+import {auditGoTopics,goMatterOrder,goOrder,auditedTopicDetails,verbenaLinks,type AuditTopic,type AuditDetail} from "./tjgo-edital-audit";
+import {incidenceMaps} from "./incidence-data";
+import {normalizeIncidenceTitle} from "./edital-incidence";
 
 // TJDFT 2022, Anexo I, pp. 52–54; gestão pública está dividida em dois blocos no planner.
 const dfMatterOrder=[202,208,210,207,201,204,203,213,209,211,212] as const;
@@ -45,4 +47,31 @@ export function filteredEditalDetails(matter:number,topic:AuditTopic,subject:str
   return [...new Map([...details,...bridge].map(d=>[d.key,d])).values()];
  }
  return details;
+}
+
+// Grifo estrito: só evidências diretas no mapa da própria matéria e banca.
+// Referências cruzadas continuam disponíveis para consulta, mas não propagam grifos.
+const incidenceMatterKey=(name:string)=>normalizeIncidenceTitle(name).replace(/^nocoes de /,"").replace(/^legislacao complementar tjgo e estado de goias$/,"legislacao complementar");
+export function strictMarkedDetails(matter:number,topic:AuditTopic,details:readonly AuditDetail[],maps:typeof incidenceMaps=incidenceMaps):AuditDetail[]{
+ const name=officialMatters.get(matter)?.titulo_central;
+ if(!name)return [];
+ const key=incidenceMatterKey(name);
+ const officialTitle=officialTopics.get(topic.id)?.topico_central;
+ if(!officialTitle)return [];
+ const exactTitles=new Set([normalizeIncidenceTitle(officialTitle),normalizeIncidenceTitle(topic.topico_central)]);
+ return details.flatMap(d=>{
+  const source=maps[d.tribunal]?.[d.bank]?.subjects.find(s=>incidenceMatterKey(s.name)===key);
+  const theme=source?.themes.find(t=>t.title===d.theme&&t.percent>0);
+  if(!source||!theme)return [];
+  const link=d.tribunal==="tjgo"&&d.bank==="verbena"?verbenaLinks[source.name]?.[theme.title]:undefined;
+  const children=d.subtopics.filter(s=>{
+   const entry=theme.subtopics.find(x=>x.title===s.title&&x.percent!==0&&x.questions!==0);
+   if(!entry)return false;
+   // Verbena/TJGO: associação explícita auditada de cada subtópico ao ID oficial.
+   if(d.tribunal==="tjgo"&&d.bank==="verbena")return link?.children[entry.title]===topic.id;
+   // Outras fontes: correspondência literal normalizada até haver vínculos explícitos.
+   return exactTitles.has(normalizeIncidenceTitle(theme.title))||exactTitles.has(normalizeIncidenceTitle(entry.title));
+  });
+  return children.length?[{...d,subtopics:children}]:[];
+ });
 }

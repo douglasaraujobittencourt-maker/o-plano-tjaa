@@ -165,7 +165,7 @@ test("Administração Pública separa 11 vínculos, 5 temas, 9 subtópicos e pri
 });
 
 
-import {filteredEditalGroups,filteredEditalDetails} from "./edital-view-filter";
+import {filteredEditalGroups,filteredEditalDetails,strictMarkedDetails} from "./edital-view-filter";
 test("filtros do edital excluem assuntos do tribunal oposto e unificam IDs sem duplicatas",()=>{
  const get=bank=>filteredEditalGroups(tribunalCatalog,bank);
  const go=get("bb"),df=get("caixa"),both=get("bnb");
@@ -185,4 +185,33 @@ test("filtros do edital excluem assuntos do tribunal oposto e unificam IDs sem d
  expect(children(df,"caixa").length).toBe(0);
  expect(children(both,"bnb").length).toBe(44);
  expect(new Set(children(both,"bnb")).size).toBe(44);
+});
+
+
+test("grifos do edital exigem subtópico direto no mapa da mesma matéria e banca",()=>{
+ const groups=filteredEditalGroups(tribunalCatalog,"bb");
+ const ap=groups.find(g=>g.m.numero===201);
+ const marked=ap.all.filter(a=>strictMarkedDetails(201,a,filteredEditalDetails(201,a,ap.m.titulo_central,"bb")).length);
+ expect(marked.map(a=>a.id).sort((a,b)=>a-b)).toEqual([20101,20102,20111,20113,20115,20121,20122,20123]);
+ const counts=marked.flatMap(a=>strictMarkedDetails(201,a,filteredEditalDetails(201,a,ap.m.titulo_central,"bb")).flatMap(d=>d.subtopics));
+ expect(counts.length).toBe(9);
+ const joint=filteredEditalGroups(tribunalCatalog,"bnb");
+ const constitution=joint.find(g=>g.m.numero===204).all.find(a=>a.id===20413);
+ const bridge=filteredEditalDetails(204,constitution,"Direito Constitucional","bnb");
+ expect(bridge.flatMap(d=>d.subtopics).length).toBe(4);
+ const strict=strictMarkedDetails(204,constitution,bridge);
+ expect(strict.flatMap(d=>d.subtopics.map(s=>s.title))).toEqual(["Emenda à Constituição Estadual"]);
+ const reference=groups.find(g=>g.m.numero===205).all.find(a=>a.id===20413);
+ expect(strictMarkedDetails(205,reference,filteredEditalDetails(205,reference,"Legislação Complementar","bb")).flatMap(d=>d.subtopics).length).toBe(3);
+ for(const g of filteredEditalGroups(tribunalCatalog,"caixa"))for(const a of g.all)expect(strictMarkedDetails(g.m.numero,a,filteredEditalDetails(g.m.numero,a,g.m.titulo_central,"caixa"))).toEqual([]);
+ const example=ap.all.find(a=>a.id===20101);
+ const valid=filteredEditalDetails(201,example,"Administração Pública","bb");
+ expect(originFromDetails(strictMarkedDetails(201,example,valid))).toBe("verbena");
+ const fabricated=valid.map(d=>({...d,bank:"fgv"}));
+ expect(strictMarkedDetails(201,example,fabricated)).toEqual([]);
+ const fgv={exams:1,approximate:false,source:"teste",subjects:[{name:"Administração Pública",total:2,note:"",themes:[{title:example.topico_central,percent:100,subtopics:[{title:valid[0].subtopics[0].title,description:"teste"}]}]}]};
+ const fgvDetail={...valid[0],key:"fgv-test",bank:"fgv",theme:example.topico_central};
+ const maps={...incidenceMaps,tjgo:{...incidenceMaps.tjgo,fgv}};
+ expect(originFromDetails(strictMarkedDetails(201,example,[...valid,fgvDetail],maps))).toBe("both");
+ expect(strictMarkedDetails(203,example,valid)).toEqual([]);
 });

@@ -10,7 +10,7 @@ import {Accordion,AccordionItem,AccordionTrigger,AccordionContent} from "@/compo
 import {BankExamSelector,useBankExam} from "@/components/bank-exam-provider";
 import {getEditalCatalog} from "@/lib/edital-catalog";
 import {scopeLabel} from "@/lib/tribunal-catalog";
-import {filteredEditalGroups,filteredEditalDetails} from "@/lib/edital-view-filter";
+import {filteredEditalGroups,filteredEditalDetails,strictMarkedDetails} from "@/lib/edital-view-filter";
 import {originFromDetails} from "@/lib/tjgo-edital-audit";
 import {incidencePresentation} from "@/lib/edital-incidence";
 import {getEtapasAutomaticasEdital,etapaDoAssunto} from "@/lib/edital-auto-progress";
@@ -47,7 +47,8 @@ function EditalPage(){
       {topics.map(a=>{
        const scope=a.reference?"Referência oficial compartilhada":a.custom?"Personalizado":a.supplemental?`Complemento TJGO · ${scopeLabel(a.escopo)}`:scopeLabel(a.escopo);
        const details=filteredEditalDetails(m.numero,a,m.titulo_central,bank).filter(d=>d.subtopics.length>0);
-       const origin=originFromDetails(details);
+       const marked= strictMarkedDetails(m.numero,a,details);
+       const origin=originFromDetails(marked);
        const marker=origin?incidencePresentation[origin]:null;
        const note=a.missingRegistration?"Item oficial sem cadastro ativo nesta conta; histórico vinculado ao ID original.":a.originalTitle?"Título personalizado preservado no cadastro: "+a.originalTitle:a.reference?"Mesmo registro de Direito Constitucional.":a.supplemental?"Não é item expresso no programa TJGO de 2021.":undefined;
        return <li key={a.id} className="flex flex-wrap justify-between gap-2 py-3">
@@ -58,7 +59,12 @@ function EditalPage(){
          {details.length>0&&<details className="mt-2 text-xs"><summary className="cursor-pointer font-medium text-muted-foreground">Subtópicos do mapa de incidência</summary>
           <div className="mt-2 space-y-2">{details.map(d=><div key={d.key} className="rounded-md border p-2">
            <p className="font-semibold">{d.theme} · {d.approximate?"≈ ":""}{d.percent}% do tema</p>
-           {d.subtopics.map(s=><div key={s.key} className="mt-2"><p className="font-medium">{s.title}</p><p className="text-muted-foreground">{s.description}</p></div>)}
+           {d.subtopics.map(s=>{
+            const directlyMarked=marked.some(x=>x.key===d.key&&x.subtopics.some(y=>y.key===s.key));
+            const subOrigin=directlyMarked?originFromDetails(marked.filter(x=>x.subtopics.some(y=>y.title===s.title))):null;
+            const subMarker=subOrigin?incidencePresentation[subOrigin]:null;
+            return <div key={s.key} className="mt-2"><p className={subMarker?`font-medium ${subMarker.text}`:"font-medium"}>{s.title}{subMarker&&<span className={`ml-2 inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${subMarker.badge}`}>{subMarker.label}</span>}</p><p className="text-muted-foreground">{s.description}</p></div>;
+           })}
           </div>)}</div>
          </details>}
         </div>

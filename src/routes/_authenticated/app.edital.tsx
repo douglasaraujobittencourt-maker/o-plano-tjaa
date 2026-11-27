@@ -8,6 +8,7 @@ import {toast} from "sonner";
 import {getSubjects,markEditalTopicsStudied} from "@/lib/planner-api";
 import {topicsForSubject,subjectDefinition} from "@/lib/tribunal-subject-source";
 import {getGoStudyDetail,goStudyWeights} from "@/lib/tjgo-study-details";
+import {isGoHighIncidence} from "@/lib/tjgo-high-incidence";
 import {Card} from "@/components/ui/card";
 import {Input} from "@/components/ui/input";
 import {Progress} from "@/components/ui/progress";
@@ -73,7 +74,7 @@ function EditalPage(){
        return <li key={a.viewKey} className="py-3">
         <details className="group">
          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-sm text-sm [&::-webkit-details-marker]:hidden">
-          <span className="flex min-w-0 flex-1 items-start gap-2"><ChevronDown className="mt-0.5 size-4 shrink-0 -rotate-90 transition-transform group-open:rotate-0"/><span>{a.displayTitle}</span></span>
+          <span className="flex min-w-0 flex-1 items-start gap-2"><ChevronDown className="mt-0.5 size-4 shrink-0 -rotate-90 transition-transform group-open:rotate-0"/><span className="min-w-0">{a.displayTitle}{isGoHighIncidence(m.numero,a,bank)&&<span className="ml-2 inline-flex max-w-full rounded-full border border-amber-400 bg-amber-100 px-2 py-0.5 align-middle text-[11px] font-semibold text-amber-950 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-200">Alta incidência - Instituto Verbena</span>}</span></span>
           <span className="shrink-0 text-xs text-muted-foreground">{progress.isError?"Indisponível":status}</span>
          </summary>
          <div className="mt-3 space-y-4 pl-6">

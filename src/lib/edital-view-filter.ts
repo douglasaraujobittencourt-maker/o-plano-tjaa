@@ -97,3 +97,18 @@ export function strictMarkedDetails(matter:number,topic:AuditTopic,details:reado
  const keys=new Set(details.map(d=>d.tribunal+":"+d.bank+":"+incidenceMatchKey(d.theme)));
  return allowed.filter(d=>keys.has(d.tribunal+":"+d.bank+":"+incidenceMatchKey(d.theme)));
 }
+
+// Seleção de alta incidência solicitada apenas para Administração Pública (TJGO).
+// Usa os vínculos explícitos da fonte compartilhada; a primeira âncora exibe
+// o detalhe e as demais recebem o selo, sem duplicar o conteúdo ou o progresso.
+export function adminVerbenaMarks(matter:number,topicId:number,bank:BankExam){
+ if(matter!==201||bank==="caixa"||!validTarget(matter,topicId)||!goOrder(201).includes(topicId))return [];
+ const subject=incidenceMaps.tjgo?.verbena?.subjects.find(s=>incidenceMatterKey(s.name)==="administracao publica");
+ return (subject?.themes??[]).filter(t=>t.percent>0).flatMap(theme=>{
+  const eligible=theme.subtopics.filter(s=>s.percent!==0&&s.questions!==0);
+  const linked=(theme.editalTopicIds??[]).includes(topicId)||eligible.some(s=>s.editalTopicIds?.includes(topicId));
+  if(!linked)return [];
+  return [{theme:theme.title,percent:theme.percent,showTheme:theme.editalTopicIds?.[0]===topicId,
+   subtopics:eligible.filter(s=>s.editalTopicIds?.[0]===topicId)}];
+ });
+}

@@ -165,7 +165,7 @@ test("Administração Pública separa 11 vínculos, 5 temas, 9 subtópicos e pri
 });
 
 
-import {filteredEditalGroups,filteredEditalDetails,strictMarkedDetails} from "./edital-view-filter";
+import {filteredEditalGroups,filteredEditalDetails,strictMarkedDetails,adminVerbenaMarks} from "./edital-view-filter";
 test("filtros do edital excluem assuntos do tribunal oposto e unificam IDs sem duplicatas",()=>{
  const get=bank=>filteredEditalGroups(tribunalCatalog,bank);
  const go=get("bb"),df=get("caixa"),both=get("bnb");
@@ -279,4 +279,20 @@ test("edital limpo mantém sequência e IDs oficiais do TJGO",()=>{
  expect(new Set(groups.flatMap(g=>g.all.map(a=>a.id))).size).toBe(100);
  expect(cleanGoTitle(201,20102)).toBe("Nova gestão pública.");
  expect(cleanGoTitle(205,20413)).toBe("Constituição do Estado de Goiás.");
+});
+
+
+test("etiqueta solicitada somente em Administração Pública, todos os cinco temas e nove subtópicos sem duplicação",()=>{
+ for(const bank of ["bb","bnb"]){
+  const groups=filteredEditalGroups(tribunalCatalog,bank);
+  const ap=groups.find(g=>g.m.numero===201);
+  const marked=ap.all.filter(a=>adminVerbenaMarks(201,a.id,bank).length);
+  expect(marked.map(a=>a.id).sort((a,b)=>a-b)).toEqual([20101,20102,20103,20104,20107,20111,20113,20114,20115,20116,20121,20122,20123]);
+  const details=marked.flatMap(a=>adminVerbenaMarks(201,a.id,bank));
+  expect(details.filter(d=>d.showTheme).map(d=>d.percent).sort((a,b)=>b-a)).toEqual([25,22,20,20,13]);
+  const children=details.flatMap(d=>d.subtopics.map(s=>s.title));
+  expect(children.length).toBe(9);expect(new Set(children).size).toBe(9);
+  for(const g of groups.filter(g=>g.m.numero!==201))for(const a of g.all)expect(adminVerbenaMarks(g.m.numero,a.id,bank)).toEqual([]);
+ }
+ for(const g of filteredEditalGroups(tribunalCatalog,"caixa"))for(const a of g.all)expect(adminVerbenaMarks(g.m.numero,a.id,"caixa")).toEqual([]);
 });

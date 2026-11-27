@@ -8,10 +8,14 @@ import {Progress} from "@/components/ui/progress";
 import {Accordion,AccordionItem,AccordionTrigger,AccordionContent} from "@/components/ui/accordion";
 import {BankExamSelector,useBankExam} from "@/components/bank-exam-provider";
 import {getEditalCatalog} from "@/lib/edital-catalog";
-import {filteredEditalGroups} from "@/lib/edital-view-filter";
+import {filteredEditalGroups,adminVerbenaMarks} from "@/lib/edital-view-filter";
 import {cleanGoNames,cleanGoTitle,cleanGoContinuation} from "@/lib/tjgo-clean-syllabus";
 import {getEtapasAutomaticasEdital,etapaDoAssunto} from "@/lib/edital-auto-progress";
 export const Route=createFileRoute("/_authenticated/app/edital")({head:()=>({meta:[{title:"Edital Verticalizado — TJGO e TJDFT | O Plano"}]}),component:EditalPage});
+
+function VerbenaLabel(){
+ return <span className="ml-2 inline-flex rounded-full border border-amber-400 bg-amber-100 px-2 py-0.5 align-middle text-[11px] font-semibold text-amber-950 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-200">Alta incidência - Instituto Verbena 🔥</span>;
+}
 
 function EditalPage(){
  const {bank}=useBankExam();
@@ -44,9 +48,14 @@ function EditalPage(){
      <Progress className="mt-2 h-1" value={progressRows.length?100*count/progressRows.length:0}/></div></AccordionTrigger>
      <AccordionContent><ul className="divide-y divide-border/60">
       {topics.map(a=>{
+       const marks=adminVerbenaMarks(m.numero,a.id,bank);
        return <li key={a.id} className="flex flex-wrap justify-between gap-2 py-3">
         <div className={`min-w-[min(180px,100%)] flex-1 ${a.continuation?"pl-4":""}`}>
-         <p className="text-sm">{a.displayTitle}</p>
+         <p className={marks.length?"text-sm font-medium text-amber-800 dark:text-amber-300":"text-sm"}>{a.displayTitle}{marks.length>0&&<VerbenaLabel/>}</p>
+         {marks.map(mark=>(mark.showTheme||mark.subtopics.length>0)&&<div key={mark.theme} className="mt-2 space-y-2 border-l border-border pl-3 text-xs">
+          {mark.showTheme&&<p className="font-medium">{mark.theme} (≈ {mark.percent}%)<VerbenaLabel/></p>}
+          {mark.subtopics.map(sub=><div key={sub.title}><p className="font-medium">{sub.title}<VerbenaLabel/></p><p className="mt-0.5 text-muted-foreground">{sub.description}</p></div>)}
+         </div>)}
         </div>
         <span className="text-xs text-muted-foreground">{progress.isError?"Indisponível":etapaDoAssunto(progress.data??{},a.id)}</span>
        </li>;
